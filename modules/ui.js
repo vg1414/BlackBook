@@ -140,8 +140,10 @@ export function renderQuickMode(players, sessionPlayerIds) {
   const container = document.getElementById('quick-players-list');
   const ids = sessionPlayerIds ? Object.keys(sessionPlayerIds) : [];
   const filtered = ids.filter(id => players[id]);
+  // Fallback: show all players if session has none
+  const playersToShow = filtered.length > 0 ? filtered : Object.keys(players);
 
-  container.innerHTML = filtered.map(id => {
+  container.innerHTML = playersToShow.map(id => {
     const p = players[id];
     return `
       <div class="quick-player-row" data-player-id="${id}">
@@ -253,7 +255,7 @@ export function renderSessionPlayerSelect(players, selectedIds) {
 // ===== HELPERS =====
 
 export function typeLabel(type) {
-  const labels = { poker: 'Poker', quick: 'Snabb', sport: 'Sport', other: 'Övrigt' };
+  const labels = { poker: 'Poker', quick: 'Snabb' };
   return labels[type] || type || 'Session';
 }
 

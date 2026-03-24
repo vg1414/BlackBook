@@ -378,8 +378,12 @@ function closeNewSessionModal() {
 
 async function handleStartSession() {
   const name = document.getElementById('input-session-name').value.trim();
+  // Fallback: if none selected, use all players
   if (state.newSessionSelectedPlayers.length === 0) {
-    showToast('Välj minst en spelare');
+    state.newSessionSelectedPlayers = Object.keys(state.players);
+  }
+  if (state.newSessionSelectedPlayers.length === 0) {
+    showToast('Inga spelare i gruppen');
     return;
   }
 
