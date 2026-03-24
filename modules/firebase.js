@@ -59,13 +59,20 @@ export async function addPlayer(groupCode, name, color) {
 export function listenPlayers(groupCode, callback) {
   const r = ref(db, `groups/${groupCode}/players`);
   return onValue(r, snap => {
-    callback(snap.exists() ? snap.val() : {});
+    if (!snap.exists()) { callback({}); return; }
+    const all = snap.val();
+    const active = Object.fromEntries(Object.entries(all).filter(([, p]) => !p.deleted));
+    callback(active);
   });
 }
 
 export async function getPlayers(groupCode) {
   const snap = await get(ref(db, `groups/${groupCode}/players`));
   return snap.exists() ? snap.val() : {};
+}
+
+export async function deletePlayer(groupCode, playerId) {
+  await update(ref(db, `groups/${groupCode}/players/${playerId}`), { deleted: true });
 }
 
 // ===== SESSIONS =====

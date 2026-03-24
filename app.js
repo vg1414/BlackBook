@@ -4,18 +4,15 @@
 import {
   createGroup, groupExists, addPlayer, getPlayers,
   listenPlayers, listenSessions, listenBalances, listenEntries,
-  createSession, getMeta
+  createSession, getMeta, deletePlayer
 } from './modules/firebase.js';
 import {
   showScreen, showToast,
   renderBalances, renderSettlements, renderActiveSessionPreview,
-  renderQuickMode, renderBuyinMode, renderHistory, renderSessionDetail,
+  renderQuickMode, renderHistory, renderSessionDetail,
   renderGroupPlayers, renderSessionPlayerSelect
 } from './modules/ui.js';
-import {
-  submitQuickResults, registerBuyin, registerRebuy,
-  registerCashout, endSession
-} from './modules/session.js';
+import { submitQuickResults, endSession } from './modules/session.js';
 import { sekToOre, oreToSek } from './modules/settlement.js';
 
 // ===== STATE =====
@@ -28,10 +25,7 @@ const state = {
   balances: {},
   entries: {},
   activeSessionId: null,
-  activeSessionType: 'poker',
   unsubscribers: [],
-  cashoutTarget: null, // { playerId }
-  newSessionType: 'poker',
   newSessionSelectedPlayers: []
 };
 
@@ -146,7 +140,6 @@ function onPlayersUpdate() {
 function onSessionsUpdate() {
   const active = Object.entries(state.sessions).find(([, s]) => s.status === 'active');
   state.activeSessionId = active ? active[0] : null;
-  state.activeSessionType = active ? active[1].type : null;
 
   renderActiveSessionPreview(state.sessions, state.players);
   renderHistory(state.sessions, state.players);
@@ -155,11 +148,6 @@ function onSessionsUpdate() {
     const session = state.sessions[state.activeSessionId];
     document.getElementById('session-title').textContent = session.name || 'Session';
     renderQuickMode(state.players, session.playerIds);
-    renderBuyinMode(state.players, session.playerIds, state.entries);
-
-    // Set mode tabs based on session type
-    const isPoker = session.type === 'poker';
-    setModeTab(isPoker ? 'buyin' : 'quick');
   }
 }
 
@@ -169,21 +157,7 @@ function onBalancesUpdate() {
 }
 
 function onEntriesUpdate() {
-  if (state.activeSessionId && state.sessions[state.activeSessionId]) {
-    const session = state.sessions[state.activeSessionId];
-    renderBuyinMode(state.players, session.playerIds, state.entries);
-  }
-}
-
-// ===== MODE TABS =====
-
-function setModeTab(mode) {
-  document.querySelectorAll('.mode-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.mode === mode);
-  });
-  document.querySelectorAll('.mode-panel').forEach(panel => {
-    panel.classList.toggle('active', panel.id === `mode-${mode}`);
-  });
+  // no-op: quick mode doesn't need live entry updates
 }
 
 // ===== QUICK MODE LOGIC =====
@@ -235,15 +209,6 @@ function bindEvents() {
   document.getElementById('btn-cancel-session').addEventListener('click', closeNewSessionModal);
   document.getElementById('btn-start-session').addEventListener('click', handleStartSession);
 
-  // Session type selector
-  document.querySelectorAll('.type-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.newSessionType = btn.dataset.type;
-    });
-  });
-
   // Group settings
   document.getElementById('btn-group-settings').addEventListener('click', openGroupModal);
   document.getElementById('btn-close-group').addEventListener('click', closeGroupModal);
@@ -256,14 +221,16 @@ function bindEvents() {
   });
   document.getElementById('btn-leave-group').addEventListener('click', handleLeaveGroup);
 
+  // Remove player (delegated)
+  document.getElementById('group-players-list').addEventListener('click', e => {
+    const btn = e.target.closest('.btn-remove-player');
+    if (!btn) return;
+    handleRemovePlayer(btn.dataset.playerId);
+  });
+
   // Session back / close
   document.getElementById('btn-back-dashboard').addEventListener('click', () => showScreen('dashboard'));
   document.getElementById('btn-close-session').addEventListener('click', handleCloseSession);
-
-  // Mode tabs
-  document.querySelectorAll('.mode-tab').forEach(btn => {
-    btn.addEventListener('click', () => setModeTab(btn.dataset.mode));
-  });
 
   // Quick mode – amount buttons (delegated)
   document.getElementById('quick-players-list').addEventListener('click', e => {
@@ -284,33 +251,6 @@ function bindEvents() {
 
   // Quick submit
   document.getElementById('btn-quick-submit').addEventListener('click', handleQuickSubmit);
-
-  // Buy-in buttons (delegated)
-  document.getElementById('buyin-players-list').addEventListener('click', async e => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const action = btn.dataset.action;
-    const playerId = btn.dataset.playerId;
-    const playerName = state.players[playerId]?.name || 'Spelare';
-
-    if (action === 'buyin') {
-      const amount = await promptAmount(`Buy-in för ${playerName} (kr):`, 200);
-      if (amount === null) return;
-      await registerBuyin(state.groupCode, state.activeSessionId, playerId, amount);
-      showToast(`Buy-in registrerad för ${playerName}`);
-    } else if (action === 'rebuy') {
-      const amount = await promptAmount(`Rebuy för ${playerName} (kr):`, 200);
-      if (amount === null) return;
-      await registerRebuy(state.groupCode, state.activeSessionId, playerId, amount);
-      showToast(`Rebuy registrerad för ${playerName}`);
-    } else if (action === 'cashout') {
-      openCashoutModal(playerId, playerName);
-    }
-  });
-
-  // Cashout modal
-  document.getElementById('btn-cancel-cashout').addEventListener('click', closeCashoutModal);
-  document.getElementById('btn-confirm-cashout').addEventListener('click', handleConfirmCashout);
 
   // History item click
   document.getElementById('history-list').addEventListener('click', e => {
@@ -412,9 +352,7 @@ function openNewSessionModal() {
     showToast('Det finns redan en aktiv session');
     return;
   }
-  state.newSessionType = 'poker';
   state.newSessionSelectedPlayers = Object.keys(state.players);
-  document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'poker'));
   renderSessionPlayerSelect(state.players, state.newSessionSelectedPlayers);
   document.getElementById('input-session-name').value = '';
 
@@ -446,7 +384,7 @@ async function handleStartSession() {
   }
 
   const sessionId = await createSession(state.groupCode, {
-    type: state.newSessionType,
+    type: 'quick',
     name,
     playerIds: state.newSessionSelectedPlayers
   });
@@ -485,33 +423,17 @@ async function handleQuickSubmit() {
   }
 }
 
-function openCashoutModal(playerId, playerName) {
-  state.cashoutTarget = { playerId };
-  document.getElementById('cashout-player-name').textContent = playerName;
-  document.getElementById('input-cashout-amount').value = '';
-  document.getElementById('modal-cashout').classList.remove('hidden');
-  setTimeout(() => document.getElementById('input-cashout-amount').focus(), 100);
-}
-
-function closeCashoutModal() {
-  document.getElementById('modal-cashout').classList.add('hidden');
-  state.cashoutTarget = null;
-}
-
-async function handleConfirmCashout() {
-  if (!state.cashoutTarget) return;
-  const val = parseFloat(document.getElementById('input-cashout-amount').value);
-  if (isNaN(val) || val < 0) { showToast('Ange ett giltigt belopp'); return; }
-
-  const { playerId } = state.cashoutTarget;
-  await registerCashout(state.groupCode, state.activeSessionId, playerId, val);
-  closeCashoutModal();
-  showToast('Cashout registrerad!');
-}
-
 function openGroupModal() {
   document.getElementById('modal-group').classList.remove('hidden');
   renderGroupPlayers(state.players, state.playerId);
+}
+
+async function handleRemovePlayer(playerId) {
+  const player = state.players[playerId];
+  if (!player) return;
+  if (!confirm(`Ta bort ${player.name} från gruppen?`)) return;
+  await deletePlayer(state.groupCode, playerId);
+  showToast(`${player.name} borttagen`);
 }
 
 function closeGroupModal() {
@@ -523,14 +445,6 @@ function closeGroupModal() {
 function randomColor() {
   const colors = ['#e05252', '#e08c52', '#d4af37', '#4caf82', '#5291e0', '#9b52e0', '#e052b8', '#52d4c8'];
   return colors[Math.floor(Math.random() * colors.length)];
-}
-
-async function promptAmount(label, defaultVal = 0) {
-  const raw = window.prompt(label, String(defaultVal));
-  if (raw === null) return null;
-  const val = parseFloat(raw);
-  if (isNaN(val) || val <= 0) { showToast('Ogiltigt belopp'); return null; }
-  return val;
 }
 
 // ===== SERVICE WORKER =====

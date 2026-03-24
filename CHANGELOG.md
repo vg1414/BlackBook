@@ -1,6 +1,20 @@
 # Changelog
 
 ## 2026-03-24
+- Rensat bort poker/buy-in/cashout/rebuy – enda sessionstyp är nu Snabb
+- Sessionsnamn finns kvar (valfritt) men typval borttaget
+- Ta bort spelare via ✕-knapp i grupptinställningar
+
+## 2026-03-24 (redesign)
+- Helt ny design: brutalistisk kortlek-estetik (svart/vitt, hård typografi)
+- Nya typsnitt: Bebas Neue (display) + DM Mono + DM Sans
+- Aktiv session visas som prominent banner överst i dashboard
+- Historik nedprioriterad visuellt – numrerade rader
+- Modaler: helbredd sheet med tjock topborder
+- FAB: fyrkantig med shadow-offset för grafisk känsla
+- Borttaget guld-tema, ersatt med kritvitt på kolsvart + blodrött
+
+## 2026-03-24
 - Initial release: Black Book PWA
 - Firebase Realtime Database-integration med realtidssynk
 - Lobby/Join-skärm med gruppkod (6 tecken) och spelarnamn

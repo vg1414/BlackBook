@@ -157,47 +157,6 @@ export function renderQuickMode(players, sessionPlayerIds) {
   }).join('');
 }
 
-// ===== BUY-IN MODE =====
-
-export function renderBuyinMode(players, sessionPlayerIds, entries) {
-  const container = document.getElementById('buyin-players-list');
-  const ids = sessionPlayerIds ? Object.keys(sessionPlayerIds) : [];
-  const filtered = ids.filter(id => players[id]);
-
-  container.innerHTML = filtered.map(id => {
-    const p = players[id];
-    const playerEntries = Object.values(entries || {}).filter(e =>
-      e.playerId === id && !e.deleted && (e.type === 'buyin' || e.type === 'rebuy' || e.type === 'cashout')
-    );
-    const totalIn = playerEntries
-      .filter(e => e.type === 'buyin' || e.type === 'rebuy')
-      .reduce((sum, e) => sum + Math.abs(e.amount), 0);
-    const cashout = playerEntries.find(e => e.type === 'cashout');
-    const hasCashout = !!cashout;
-    const net = hasCashout ? (cashout.amount + playerEntries.filter(e => e.type === 'buyin' || e.type === 'rebuy').reduce((s, e) => s + e.amount, 0)) : null;
-    const netCls = net === null ? '' : net > 0 ? 'positive' : net < 0 ? 'negative' : 'zero';
-    const hasBuyin = playerEntries.some(e => e.type === 'buyin');
-
-    return `
-      <div class="buyin-player-card ${hasBuyin ? 'has-buyin' : ''}" data-player-id="${id}">
-        <div class="buyin-player-header">
-          <div class="player-avatar" style="background:${p.color}20;color:${p.color}">${p.name.charAt(0)}</div>
-          <span class="buyin-player-name">${escHtml(p.name)}</span>
-          ${net !== null ? `<span class="buyin-net ${netCls}">${formatAmount(net)}</span>` : ''}
-        </div>
-        <div class="buyin-stat">
-          Inne: ${oreToSek(totalIn)}${hasCashout ? ' · Cashout: ' + oreToSek(cashout.amount) : ''}
-        </div>
-        <div class="buyin-actions" style="margin-top:8px">
-          ${!hasBuyin ? `<button class="btn btn-secondary btn-sm" data-action="buyin" data-player-id="${id}">Buy-in</button>` : ''}
-          ${hasBuyin ? `<button class="btn btn-secondary btn-sm" data-action="rebuy" data-player-id="${id}">Rebuy</button>` : ''}
-          ${hasBuyin && !hasCashout ? `<button class="btn btn-primary btn-sm" data-action="cashout" data-player-id="${id}">Cashout</button>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
 // ===== HISTORY =====
 
 export function renderHistory(sessions, players) {
@@ -276,6 +235,7 @@ export function renderGroupPlayers(players, currentPlayerId) {
     <div class="group-player-item">
       <div class="player-avatar" style="background:${p.color}20;color:${p.color}">${p.name.charAt(0)}</div>
       <span class="group-player-name">${escHtml(p.name)}${id === currentPlayerId ? ' (du)' : ''}</span>
+      <button class="btn-remove-player" data-player-id="${id}" title="Ta bort spelare">✕</button>
     </div>
   `).join('');
 }

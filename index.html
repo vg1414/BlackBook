@@ -83,26 +83,12 @@
       </header>
 
       <div class="screen-content">
-        <div id="session-mode-tabs" class="mode-tabs">
-          <button class="mode-tab active" data-mode="quick">Snabb</button>
-          <button class="mode-tab" data-mode="buyin">Buy-in</button>
+        <div id="quick-players-list" class="quick-players-list"></div>
+        <div class="sum-row">
+          <span class="sum-label">Summa:</span>
+          <span id="quick-sum" class="sum-value">0 kr</span>
         </div>
-
-        <!-- QUICK MODE -->
-        <div id="mode-quick" class="mode-panel active">
-          <div id="quick-players-list" class="quick-players-list"></div>
-          <div class="sum-row">
-            <span class="sum-label">Summa:</span>
-            <span id="quick-sum" class="sum-value">0 kr</span>
-          </div>
-          <button id="btn-quick-submit" class="btn btn-primary btn-full">Registrera</button>
-        </div>
-
-        <!-- BUYIN MODE -->
-        <div id="mode-buyin" class="mode-panel">
-          <div id="buyin-players-list" class="buyin-players-list"></div>
-          <button id="btn-cashout-all" class="btn btn-secondary btn-full">Registrera cashouts</button>
-        </div>
+        <button id="btn-quick-submit" class="btn btn-primary btn-full">Registrera</button>
       </div>
     </div>
 
@@ -145,15 +131,6 @@
         <input type="text" id="input-session-name" placeholder="T.ex. Fredagspoker" maxlength="40" />
       </div>
       <div class="form-group">
-        <label>Typ</label>
-        <div class="type-selector">
-          <button class="type-btn active" data-type="poker">♠ Poker</button>
-          <button class="type-btn" data-type="quick">⚡ Snabb</button>
-          <button class="type-btn" data-type="sport">⚽ Sport</button>
-          <button class="type-btn" data-type="other">🎲 Övrigt</button>
-        </div>
-      </div>
-      <div class="form-group">
         <label>Spelare</label>
         <div id="session-player-select" class="player-checkboxes"></div>
       </div>
@@ -184,22 +161,6 @@
       <div class="modal-actions">
         <button id="btn-close-group" class="btn btn-secondary btn-full">Stäng</button>
         <button id="btn-leave-group" class="btn btn-danger">Lämna grupp</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Cashout Modal -->
-  <div id="modal-cashout" class="modal-overlay hidden">
-    <div class="modal">
-      <h2>Cashout</h2>
-      <p id="cashout-player-name" class="modal-subtitle"></p>
-      <div class="form-group">
-        <label for="input-cashout-amount">Slutstack (kr)</label>
-        <input type="number" id="input-cashout-amount" placeholder="0" min="0" inputmode="numeric" />
-      </div>
-      <div class="modal-actions">
-        <button id="btn-cancel-cashout" class="btn btn-secondary">Avbryt</button>
-        <button id="btn-confirm-cashout" class="btn btn-primary">Bekräfta</button>
       </div>
     </div>
   </div>
