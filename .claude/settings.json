@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_firebase_firebase__firebase_login",
+      "Bash(python -c \"print\\(''ok''\\)\")",
+      "Bash(py -c \"print\\(''ok''\\)\")",
+      "mcp__github__push_files",
+      "Bash(gh api:*)"
+    ]
+  }
+}
