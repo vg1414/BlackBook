@@ -295,7 +295,7 @@ export function renderSessionPlayerSelect(players, selectedIds) {
 // ===== HELPERS =====
 
 export function typeLabel(type) {
-  const labels = { poker: 'Poker', quick: 'Snabb', sport: 'Sport', other: 'Övrigt' };
+  const labels = { poker: 'Poker', quick: 'Snabb' };
   return labels[type] || type || 'Session';
 }
 
