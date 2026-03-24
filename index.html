@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#d4af37" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Black Book" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Black Book</title>
+</head>
+<body>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- SCREENS -->
+  <div id="app">
+
+    <!-- LOBBY -->
+    <div id="screen-lobby" class="screen active">
+      <div class="lobby-container">
+        <div class="logo">
+          <div class="logo-icon">♠</div>
+          <h1>Black Book</h1>
+          <p class="logo-sub">Skuldboken</p>
+        </div>
+        <div class="card">
+          <h2>Gå med i en grupp</h2>
+          <div class="form-group">
+            <label for="input-group-code">Gruppkod</label>
+            <input type="text" id="input-group-code" placeholder="T.ex. ABC123" maxlength="6" autocomplete="off" autocapitalize="characters" />
+          </div>
+          <div class="form-group">
+            <label for="input-player-name">Ditt namn</label>
+            <input type="text" id="input-player-name" placeholder="T.ex. David" maxlength="20" autocomplete="off" />
+          </div>
+          <button id="btn-join" class="btn btn-primary btn-full">Gå med</button>
+          <div class="divider">eller</div>
+          <button id="btn-create" class="btn btn-secondary btn-full">Skapa ny grupp</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="screen-dashboard" class="screen">
+      <header class="app-header">
+        <h1 class="header-title">Black Book</h1>
+        <button id="btn-group-settings" class="btn-icon" title="Grupptinställningar">⚙</button>
+      </header>
+
+      <div class="screen-content">
+        <section class="section">
+          <h2 class="section-title">Saldo</h2>
+          <div id="balances-list" class="balances-list"></div>
+        </section>
+
+        <section class="section" id="section-settlements">
+          <h2 class="section-title">Uppgörelse</h2>
+          <div id="settlements-list" class="settlements-list"></div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">Aktiv session</h2>
+          <div id="active-session-preview" class="active-session-preview">
+            <p class="muted">Ingen aktiv session</p>
+          </div>
+        </section>
+      </div>
+
+      <button id="fab-new-session" class="fab">+</button>
+    </div>
+
+    <!-- ACTIVE SESSION -->
+    <div id="screen-session" class="screen">
+      <header class="app-header">
+        <button id="btn-back-dashboard" class="btn-icon">←</button>
+        <h1 class="header-title" id="session-title">Session</h1>
+        <button id="btn-close-session" class="btn-text btn-danger">Stäng</button>
+      </header>
+
+      <div class="screen-content">
+        <div id="session-mode-tabs" class="mode-tabs">
+          <button class="mode-tab active" data-mode="quick">Snabb</button>
+          <button class="mode-tab" data-mode="buyin">Buy-in</button>
+        </div>
+
+        <!-- QUICK MODE -->
+        <div id="mode-quick" class="mode-panel active">
+          <div id="quick-players-list" class="quick-players-list"></div>
+          <div class="sum-row">
+            <span class="sum-label">Summa:</span>
+            <span id="quick-sum" class="sum-value">0 kr</span>
+          </div>
+          <button id="btn-quick-submit" class="btn btn-primary btn-full">Registrera</button>
+        </div>
+
+        <!-- BUYIN MODE -->
+        <div id="mode-buyin" class="mode-panel">
+          <div id="buyin-players-list" class="buyin-players-list"></div>
+          <button id="btn-cashout-all" class="btn btn-secondary btn-full">Registrera cashouts</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="screen-history" class="screen">
+      <header class="app-header">
+        <h1 class="header-title">Historik</h1>
+      </header>
+      <div class="screen-content">
+        <div id="history-list" class="history-list"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav id="bottom-nav" class="bottom-nav hidden">
+    <button class="nav-btn active" data-screen="dashboard">
+      <span class="nav-icon">⚖</span>
+      <span class="nav-label">Saldo</span>
+    </button>
+    <button class="nav-btn" data-screen="session">
+      <span class="nav-icon">♠</span>
+      <span class="nav-label">Session</span>
+    </button>
+    <button class="nav-btn" data-screen="history">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">Historik</span>
+    </button>
+  </nav>
+
+  <!-- MODALS -->
+
+  <!-- New Session Modal -->
+  <div id="modal-new-session" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Ny session</h2>
+      <div class="form-group">
+        <label for="input-session-name">Namn (valfritt)</label>
+        <input type="text" id="input-session-name" placeholder="T.ex. Fredagspoker" maxlength="40" />
+      </div>
+      <div class="form-group">
+        <label>Typ</label>
+        <div class="type-selector">
+          <button class="type-btn active" data-type="poker">♠ Poker</button>
+          <button class="type-btn" data-type="quick">⚡ Snabb</button>
+          <button class="type-btn" data-type="sport">⚽ Sport</button>
+          <button class="type-btn" data-type="other">🎲 Övrigt</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Spelare</label>
+        <div id="session-player-select" class="player-checkboxes"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-cancel-session" class="btn btn-secondary">Avbryt</button>
+        <button id="btn-start-session" class="btn btn-primary">Starta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Group Settings Modal -->
+  <div id="modal-group" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Grupptinställningar</h2>
+      <div class="group-code-display">
+        <span class="label">Gruppkod</span>
+        <span id="display-group-code" class="group-code-value"></span>
+        <button id="btn-copy-code" class="btn-text">Kopiera</button>
+      </div>
+      <div class="form-group">
+        <label for="input-new-player">Lägg till spelare</label>
+        <div class="input-row">
+          <input type="text" id="input-new-player" placeholder="Namn" maxlength="20" />
+          <button id="btn-add-player" class="btn btn-primary">Lägg till</button>
+        </div>
+      </div>
+      <div id="group-players-list" class="group-players-list"></div>
+      <div class="modal-actions">
+        <button id="btn-close-group" class="btn btn-secondary btn-full">Stäng</button>
+        <button id="btn-leave-group" class="btn btn-danger">Lämna grupp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cashout Modal -->
+  <div id="modal-cashout" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Cashout</h2>
+      <p id="cashout-player-name" class="modal-subtitle"></p>
+      <div class="form-group">
+        <label for="input-cashout-amount">Slutstack (kr)</label>
+        <input type="number" id="input-cashout-amount" placeholder="0" min="0" inputmode="numeric" />
+      </div>
+      <div class="modal-actions">
+        <button id="btn-cancel-cashout" class="btn btn-secondary">Avbryt</button>
+        <button id="btn-confirm-cashout" class="btn btn-primary">Bekräfta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session Detail Modal -->
+  <div id="modal-session-detail" class="modal-overlay hidden">
+    <div class="modal">
+      <h2 id="detail-session-name">Session</h2>
+      <div id="detail-entries-list" class="detail-entries-list"></div>
+      <div class="modal-actions">
+        <button id="btn-close-detail" class="btn btn-secondary btn-full">Stäng</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

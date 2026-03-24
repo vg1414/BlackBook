@@ -1,0 +1,431 @@
+/**
+ * app.js – Black Book main application
+ */
+import {
+  createGroup, groupExists, addPlayer, getPlayers,
+  listenPlayers, listenSessions, listenBalances, listenEntries,
+  createSession, getMeta
+} from './modules/firebase.js';
+import {
+  showScreen, showToast,
+  renderBalances, renderSettlements, renderActiveSessionPreview,
+  renderQuickMode, renderBuyinMode, renderHistory, renderSessionDetail,
+  renderGroupPlayers, renderSessionPlayerSelect
+} from './modules/ui.js';
+import {
+  submitQuickResults, registerBuyin, registerRebuy,
+  registerCashout, endSession
+} from './modules/session.js';
+import { sekToOre, oreToSek } from './modules/settlement.js';
+
+// ===== STATE =====
+const state = {
+  groupCode: null,
+  playerId: null,
+  playerName: null,
+  players: {},
+  sessions: {},
+  balances: {},
+  entries: {},
+  activeSessionId: null,
+  activeSessionType: 'poker',
+  unsubscribers: [],
+  cashoutTarget: null,
+  newSessionType: 'poker',
+  newSessionSelectedPlayers: []
+};
+
+// ===== INIT =====
+
+function init() {
+  const saved = getSavedGroup();
+  if (saved) {
+    state.groupCode = saved.groupCode;
+    state.playerId = saved.playerId;
+    state.playerName = saved.playerName;
+    connectToGroup();
+  } else {
+    showScreen('lobby');
+    prefillCode();
+  }
+  bindEvents();
+  registerSW();
+
+  const sig = document.createElement('div');
+  sig.className = 'app-signature';
+  sig.textContent = 'Made by: David Hefner';
+  document.body.appendChild(sig);
+}
+
+function getSavedGroup() {
+  try {
+    const raw = localStorage.getItem('blackbook_session');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveGroup(groupCode, playerId, playerName) {
+  localStorage.setItem('blackbook_session', JSON.stringify({ groupCode, playerId, playerName }));
+}
+
+function clearSavedGroup() {
+  localStorage.removeItem('blackbook_session');
+}
+
+function prefillCode() {
+  const saved = getSavedGroup();
+  if (saved?.groupCode) {
+    document.getElementById('input-group-code').value = saved.groupCode;
+  }
+}
+
+function generateCode() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+async function connectToGroup() {
+  const { groupCode } = state;
+  if (!groupCode) return;
+  state.unsubscribers.forEach(fn => fn());
+  state.unsubscribers = [];
+  state.unsubscribers.push(
+    listenPlayers(groupCode, players => { state.players = players || {}; onPlayersUpdate(); }),
+    listenSessions(groupCode, sessions => { state.sessions = sessions || {}; onSessionsUpdate(); }),
+    listenBalances(groupCode, balances => { state.balances = balances || {}; onBalancesUpdate(); }),
+    listenEntries(groupCode, entries => { state.entries = entries || {}; onEntriesUpdate(); })
+  );
+  showScreen('dashboard');
+  document.getElementById('bottom-nav').classList.remove('hidden');
+  document.getElementById('display-group-code').textContent = groupCode;
+}
+
+function onPlayersUpdate() {
+  renderBalances(state.balances, state.players, state.playerId);
+  renderSettlements(state.balances, state.players);
+  renderGroupPlayers(state.players, state.playerId);
+  if (state.activeSessionId && state.sessions[state.activeSessionId]) {
+    const session = state.sessions[state.activeSessionId];
+    renderQuickMode(state.players, session.playerIds);
+    renderBuyinMode(state.players, session.playerIds, state.entries);
+  }
+}
+
+function onSessionsUpdate() {
+  const active = Object.entries(state.sessions).find(([, s]) => s.status === 'active');
+  state.activeSessionId = active ? active[0] : null;
+  state.activeSessionType = active ? active[1].type : null;
+  renderActiveSessionPreview(state.sessions, state.players);
+  renderHistory(state.sessions, state.players);
+  if (state.activeSessionId) {
+    const session = state.sessions[state.activeSessionId];
+    document.getElementById('session-title').textContent = session.name || 'Session';
+    renderQuickMode(state.players, session.playerIds);
+    renderBuyinMode(state.players, session.playerIds, state.entries);
+    setModeTab(session.type === 'poker' ? 'buyin' : 'quick');
+  }
+}
+
+function onBalancesUpdate() {
+  renderBalances(state.balances, state.players, state.playerId);
+  renderSettlements(state.balances, state.players);
+}
+
+function onEntriesUpdate() {
+  if (state.activeSessionId && state.sessions[state.activeSessionId]) {
+    const session = state.sessions[state.activeSessionId];
+    renderBuyinMode(state.players, session.playerIds, state.entries);
+  }
+}
+
+function setModeTab(mode) {
+  document.querySelectorAll('.mode-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+  document.querySelectorAll('.mode-panel').forEach(panel => panel.classList.toggle('active', panel.id === `mode-${mode}`));
+}
+
+function getQuickAmounts() {
+  const amounts = {};
+  document.querySelectorAll('#quick-players-list .amount-input').forEach(input => {
+    amounts[input.dataset.playerId] = parseFloat(input.value) || 0;
+  });
+  return amounts;
+}
+
+function updateQuickSum() {
+  const amounts = getQuickAmounts();
+  const total = Object.values(amounts).reduce((s, v) => s + v, 0);
+  const el = document.getElementById('quick-sum');
+  el.textContent = total === 0 ? '0 kr' : `${total > 0 ? '+' : ''}${total.toFixed(0)} kr`;
+  el.className = 'sum-value ' + (total === 0 ? 'zero' : 'nonzero');
+}
+
+function bindEvents() {
+  document.getElementById('btn-join').addEventListener('click', handleJoin);
+  document.getElementById('btn-create').addEventListener('click', handleCreate);
+  document.getElementById('input-group-code').addEventListener('keydown', e => { if (e.key === 'Enter') handleJoin(); });
+  document.getElementById('input-player-name').addEventListener('keydown', e => { if (e.key === 'Enter') handleJoin(); });
+
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const screen = btn.dataset.screen;
+      if (screen === 'session' && !state.activeSessionId) { showToast('Ingen aktiv session – starta en ny'); return; }
+      showScreen(screen);
+    });
+  });
+
+  document.getElementById('fab-new-session').addEventListener('click', openNewSessionModal);
+  document.getElementById('btn-cancel-session').addEventListener('click', closeNewSessionModal);
+  document.getElementById('btn-start-session').addEventListener('click', handleStartSession);
+
+  document.querySelectorAll('.type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.newSessionType = btn.dataset.type;
+    });
+  });
+
+  document.getElementById('btn-group-settings').addEventListener('click', openGroupModal);
+  document.getElementById('btn-close-group').addEventListener('click', closeGroupModal);
+  document.getElementById('btn-copy-code').addEventListener('click', () => {
+    navigator.clipboard?.writeText(state.groupCode).then(() => showToast('Kod kopierad!'));
+  });
+  document.getElementById('btn-add-player').addEventListener('click', handleAddPlayer);
+  document.getElementById('input-new-player').addEventListener('keydown', e => { if (e.key === 'Enter') handleAddPlayer(); });
+  document.getElementById('btn-leave-group').addEventListener('click', handleLeaveGroup);
+
+  document.getElementById('btn-back-dashboard').addEventListener('click', () => showScreen('dashboard'));
+  document.getElementById('btn-close-session').addEventListener('click', handleCloseSession);
+
+  document.querySelectorAll('.mode-tab').forEach(btn => {
+    btn.addEventListener('click', () => setModeTab(btn.dataset.mode));
+  });
+
+  document.getElementById('quick-players-list').addEventListener('click', e => {
+    const btn = e.target.closest('.amount-btn');
+    if (!btn) return;
+    const id = btn.dataset.playerId;
+    const input = document.querySelector(`#quick-players-list .amount-input[data-player-id="${id}"]`);
+    if (!input) return;
+    const val = parseFloat(input.value) || 0;
+    input.value = btn.dataset.action === 'inc' ? val + 50 : val - 50;
+    updateQuickSum();
+  });
+
+  document.getElementById('quick-players-list').addEventListener('input', e => {
+    if (e.target.classList.contains('amount-input')) updateQuickSum();
+  });
+
+  document.getElementById('btn-quick-submit').addEventListener('click', handleQuickSubmit);
+
+  document.getElementById('buyin-players-list').addEventListener('click', async e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const playerId = btn.dataset.playerId;
+    const playerName = state.players[playerId]?.name || 'Spelare';
+    if (action === 'buyin') {
+      const amount = await promptAmount(`Buy-in för ${playerName} (kr):`, 200);
+      if (amount === null) return;
+      await registerBuyin(state.groupCode, state.activeSessionId, playerId, amount);
+      showToast(`Buy-in registrerad för ${playerName}`);
+    } else if (action === 'rebuy') {
+      const amount = await promptAmount(`Rebuy för ${playerName} (kr):`, 200);
+      if (amount === null) return;
+      await registerRebuy(state.groupCode, state.activeSessionId, playerId, amount);
+      showToast(`Rebuy registrerad för ${playerName}`);
+    } else if (action === 'cashout') {
+      openCashoutModal(playerId, playerName);
+    }
+  });
+
+  document.getElementById('btn-cancel-cashout').addEventListener('click', closeCashoutModal);
+  document.getElementById('btn-confirm-cashout').addEventListener('click', handleConfirmCashout);
+
+  document.getElementById('history-list').addEventListener('click', e => {
+    const item = e.target.closest('.history-item');
+    if (!item) return;
+    const sessionId = item.dataset.sessionId;
+    const session = { ...state.sessions[sessionId], id: sessionId };
+    renderSessionDetail(session, state.entries, state.players);
+    document.getElementById('modal-session-detail').classList.remove('hidden');
+  });
+
+  document.getElementById('btn-close-detail').addEventListener('click', () => {
+    document.getElementById('modal-session-detail').classList.add('hidden');
+  });
+
+  document.getElementById('active-session-preview').addEventListener('click', () => {
+    if (state.activeSessionId) showScreen('session');
+  });
+
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.add('hidden'); });
+  });
+}
+
+async function handleJoin() {
+  const code = document.getElementById('input-group-code').value.trim().toUpperCase();
+  const name = document.getElementById('input-player-name').value.trim();
+  if (!code || code.length < 4) { showToast('Ange en giltig gruppkod'); return; }
+  if (!name) { showToast('Ange ditt namn'); return; }
+  const exists = await groupExists(code);
+  if (!exists) { showToast('Gruppen hittades inte'); return; }
+  const players = await getPlayers(code);
+  let playerId = Object.entries(players).find(([, p]) => p.name.toLowerCase() === name.toLowerCase())?.[0];
+  if (!playerId) playerId = await addPlayer(code, name, randomColor());
+  state.groupCode = code;
+  state.playerId = playerId;
+  state.playerName = name;
+  saveGroup(code, playerId, name);
+  await connectToGroup();
+  showToast(`Välkommen, ${name}!`);
+}
+
+async function handleCreate() {
+  const name = document.getElementById('input-player-name').value.trim();
+  if (!name) { showToast('Ange ditt namn innan du skapar grupp'); return; }
+  const code = generateCode();
+  await createGroup(code);
+  const playerId = await addPlayer(code, name, randomColor());
+  state.groupCode = code;
+  state.playerId = playerId;
+  state.playerName = name;
+  saveGroup(code, playerId, name);
+  document.getElementById('input-group-code').value = code;
+  await connectToGroup();
+  showToast(`Grupp skapad! Kod: ${code}`);
+}
+
+function handleLeaveGroup() {
+  if (!confirm('Lämna gruppen? Din data bevaras.')) return;
+  state.unsubscribers.forEach(fn => fn());
+  state.unsubscribers = [];
+  clearSavedGroup();
+  document.getElementById('bottom-nav').classList.add('hidden');
+  document.getElementById('modal-group').classList.add('hidden');
+  showScreen('lobby');
+  showToast('Du har lämnat gruppen');
+}
+
+async function handleAddPlayer() {
+  const input = document.getElementById('input-new-player');
+  const name = input.value.trim();
+  if (!name) return;
+  const exists = Object.values(state.players).some(p => p.name.toLowerCase() === name.toLowerCase());
+  if (exists) { showToast('Det finns redan en spelare med det namnet'); return; }
+  await addPlayer(state.groupCode, name, randomColor());
+  input.value = '';
+  showToast(`${name} tillagd!`);
+}
+
+function openNewSessionModal() {
+  if (state.activeSessionId) { showToast('Det finns redan en aktiv session'); return; }
+  state.newSessionType = 'poker';
+  state.newSessionSelectedPlayers = Object.keys(state.players);
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'poker'));
+  renderSessionPlayerSelect(state.players, state.newSessionSelectedPlayers);
+  document.getElementById('input-session-name').value = '';
+  document.querySelectorAll('.player-checkbox-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('selected');
+      const id = btn.dataset.playerId;
+      if (btn.classList.contains('selected')) {
+        if (!state.newSessionSelectedPlayers.includes(id)) state.newSessionSelectedPlayers.push(id);
+      } else {
+        state.newSessionSelectedPlayers = state.newSessionSelectedPlayers.filter(x => x !== id);
+      }
+    });
+  });
+  document.getElementById('modal-new-session').classList.remove('hidden');
+}
+
+function closeNewSessionModal() {
+  document.getElementById('modal-new-session').classList.add('hidden');
+}
+
+async function handleStartSession() {
+  const name = document.getElementById('input-session-name').value.trim();
+  if (state.newSessionSelectedPlayers.length === 0) { showToast('Välj minst en spelare'); return; }
+  await createSession(state.groupCode, { type: state.newSessionType, name, playerIds: state.newSessionSelectedPlayers });
+  closeNewSessionModal();
+  showScreen('session');
+  showToast('Session startad!');
+}
+
+async function handleCloseSession() {
+  if (!state.activeSessionId) return;
+  if (!confirm('Stäng sessionen? Resultaten sparas.')) return;
+  await endSession(state.groupCode, state.activeSessionId);
+  showScreen('dashboard');
+  showToast('Session stängd');
+}
+
+async function handleQuickSubmit() {
+  if (!state.activeSessionId) { showToast('Ingen aktiv session'); return; }
+  const amounts = getQuickAmounts();
+  const total = Object.values(amounts).reduce((s, v) => s + v, 0);
+  if (Math.abs(total) > 1) { showToast(`Summan måste vara 0 (nu: ${total > 0 ? '+' : ''}${total.toFixed(0)} kr)`); return; }
+  try {
+    await submitQuickResults(state.groupCode, state.activeSessionId, amounts);
+    document.querySelectorAll('#quick-players-list .amount-input').forEach(i => i.value = 0);
+    updateQuickSum();
+    showToast('Resultat registrerat!');
+  } catch (err) { showToast(err.message); }
+}
+
+function openCashoutModal(playerId, playerName) {
+  state.cashoutTarget = { playerId };
+  document.getElementById('cashout-player-name').textContent = playerName;
+  document.getElementById('input-cashout-amount').value = '';
+  document.getElementById('modal-cashout').classList.remove('hidden');
+  setTimeout(() => document.getElementById('input-cashout-amount').focus(), 100);
+}
+
+function closeCashoutModal() {
+  document.getElementById('modal-cashout').classList.add('hidden');
+  state.cashoutTarget = null;
+}
+
+async function handleConfirmCashout() {
+  if (!state.cashoutTarget) return;
+  const val = parseFloat(document.getElementById('input-cashout-amount').value);
+  if (isNaN(val) || val < 0) { showToast('Ange ett giltigt belopp'); return; }
+  await registerCashout(state.groupCode, state.activeSessionId, state.cashoutTarget.playerId, val);
+  closeCashoutModal();
+  showToast('Cashout registrerad!');
+}
+
+function openGroupModal() {
+  document.getElementById('modal-group').classList.remove('hidden');
+  renderGroupPlayers(state.players, state.playerId);
+}
+
+function closeGroupModal() {
+  document.getElementById('modal-group').classList.add('hidden');
+}
+
+function randomColor() {
+  const colors = ['#e05252', '#e08c52', '#d4af37', '#4caf82', '#5291e0', '#9b52e0', '#e052b8', '#52d4c8'];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
+async function promptAmount(label, defaultVal = 0) {
+  const raw = window.prompt(label, String(defaultVal));
+  if (raw === null) return null;
+  const val = parseFloat(raw);
+  if (isNaN(val) || val <= 0) { showToast('Ogiltigt belopp'); return null; }
+  return val;
+}
+
+function registerSW() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+}
+
+init();
