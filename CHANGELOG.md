@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-03-25 (uppdatering 2)
+- Bekräfta transaktioner i Uppgörelse med ✓-knapp och bekräftelsedialog
+- Ny sektion "Bekräftade transaktioner" med möjlighet att ångra
+- Bekräftelser sparas permanent i Firebase för alla i gruppen
+- "Stäng" på sessionsskärmen döpt till "Avsluta session"
+
+## 2026-03-25
+- Linjediagram-vy per spelare (📈-knapp i aktiv session), uppdateras löpande
+- 25kr steg istället för 50kr i +/–-knapparna
+- "(Du)" – stor D och större textstorlek
+- Alla amount-input lika breda, högerjusterade, ingen zoom på iPhone/Android
+- Möjlighet att fortsätta stängda sessioner (Historik → Fortsätt)
+- Radera sessioner med bekräftelsedialog (aktiva via 🗑-knapp, stängda i historik)
+- "Snabb"-text borttagen genomgående
+
 ## 2026-03-24
 - Rensat bort poker/buy-in/cashout/rebuy – enda sessionstyp är nu Snabb
 - Sessionsnamn finns kvar (valfritt) men typval borttaget

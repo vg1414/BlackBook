@@ -58,7 +58,7 @@ export function renderBalances(balances, players, currentPlayerId) {
       <div class="balance-item ${cls}">
         <div class="player-avatar" style="background:${player.color}20;color:${player.color}">${initial}</div>
         <div class="balance-info">
-          <span class="balance-name">${escHtml(player.name)}${isYou ? '<span class="balance-you">(du)</span>' : ''}</span>
+          <span class="balance-name">${escHtml(player.name)}${isYou ? '<span class="balance-you">(Du)</span>' : ''}</span>
         </div>
         <span class="balance-amount ${amtCls}">${formatAmount(net)}</span>
       </div>
@@ -68,7 +68,7 @@ export function renderBalances(balances, players, currentPlayerId) {
 
 // ===== SETTLEMENTS =====
 
-export function renderSettlements(balances, players) {
+export function renderSettlements(balances, players, confirmations = {}) {
   const container = document.getElementById('settlements-list');
   const section = document.getElementById('section-settlements');
 
@@ -83,14 +83,16 @@ export function renderSettlements(balances, players) {
   });
 
   const transactions = minimizePayments(netMap);
+  const confirmedKeys = new Set(Object.keys(confirmations));
+  const pending = transactions.filter(t => !confirmedKeys.has(`${t.from}_${t.to}_${t.amount}`));
 
-  if (transactions.length === 0) {
+  if (pending.length === 0) {
     section.style.display = 'none';
     return;
   }
 
   section.style.display = 'block';
-  container.innerHTML = transactions.map(t => {
+  container.innerHTML = pending.map(t => {
     const fromName = players[t.from]?.name || t.from;
     const toName = players[t.to]?.name || t.to;
     return `
@@ -99,6 +101,35 @@ export function renderSettlements(balances, players) {
         <span class="settlement-arrow">→</span>
         <span class="settlement-to">${escHtml(toName)}</span>
         <span class="settlement-amount">${oreToSek(t.amount)}</span>
+        <button class="btn-confirm-tx" data-from="${t.from}" data-to="${t.to}" data-amount="${t.amount}" title="Bekräfta betalning">✓</button>
+      </div>
+    `;
+  }).join('');
+}
+
+export function renderConfirmedTransactions(balances, players, confirmations = {}) {
+  const section = document.getElementById('section-confirmed');
+  const container = document.getElementById('confirmed-list');
+
+  const entries = Object.values(confirmations);
+  if (entries.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  container.innerHTML = entries.map(t => {
+    const fromName = players[t.from]?.name || t.from;
+    const toName = players[t.to]?.name || t.to;
+    const date = t.confirmedAt ? new Date(t.confirmedAt).toLocaleDateString('sv-SE') : '';
+    return `
+      <div class="settlement-item settlement-confirmed">
+        <span class="settlement-from">${escHtml(fromName)}</span>
+        <span class="settlement-arrow">→</span>
+        <span class="settlement-to">${escHtml(toName)}</span>
+        <span class="settlement-amount">${oreToSek(t.amount)}</span>
+        <span class="confirmed-date">${date}</span>
+        <button class="btn-unconfirm-tx" data-from="${t.from}" data-to="${t.to}" data-amount="${t.amount}" title="Ångra">✕</button>
       </div>
     `;
   }).join('');
@@ -126,7 +157,7 @@ export function renderActiveSessionPreview(sessions, players) {
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
         <div style="font-weight:600;color:var(--gold)">${escHtml(label)}</div>
-        <div style="font-size:13px;color:var(--text-muted)">${playerCount} spelare · ${typeLabel(session.type)}</div>
+        <div style="font-size:13px;color:var(--text-muted)">${playerCount} spelare</div>
       </div>
       <div style="font-size:12px;color:var(--text-muted)">Pågår ▶</div>
     </div>
@@ -179,14 +210,18 @@ export function renderHistory(sessions, players) {
 
   container.innerHTML = closed.map(([id, s]) => {
     const date = s.closedAt ? new Date(s.closedAt).toLocaleDateString('sv-SE') : '–';
-    const label = s.name || typeLabel(s.type);
+    const label = s.name || 'Session';
     return `
       <div class="history-item" data-session-id="${id}">
         <div class="history-item-header">
           <span class="history-item-name">${escHtml(label)}</span>
           <span class="history-item-date">${date}</span>
         </div>
-        <div class="history-item-type">${typeLabel(s.type)}</div>
+        <div class="history-item-actions">
+          <button class="btn btn-secondary btn-sm history-btn-detail" data-session-id="${id}">Visa</button>
+          <button class="btn btn-secondary btn-sm history-btn-reopen" data-session-id="${id}">Fortsätt</button>
+          <button class="btn btn-sm history-btn-delete" data-session-id="${id}" style="background:transparent;color:var(--danger);border:1px solid var(--danger)">Radera</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -216,7 +251,7 @@ export function renderSessionDetail(session, entries, players) {
       <div class="detail-entry-item">
         <div class="detail-entry-left">
           <span class="detail-entry-player">${escHtml(playerName)}</span>
-          <span class="detail-entry-type">${e.type}${e.note ? ' · ' + escHtml(e.note) : ''}</span>
+          <span class="detail-entry-type">${e.note ? escHtml(e.note) : ''}</span>
         </div>
         <span class="detail-entry-amount ${amtCls}">${formatAmount(e.amount)}</span>
       </div>
@@ -255,8 +290,7 @@ export function renderSessionPlayerSelect(players, selectedIds) {
 // ===== HELPERS =====
 
 export function typeLabel(type) {
-  const labels = { poker: 'Poker', quick: 'Snabb' };
-  return labels[type] || type || 'Session';
+  return 'Session';
 }
 
 function escHtml(str) {

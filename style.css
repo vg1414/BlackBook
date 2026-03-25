@@ -174,6 +174,7 @@ input[type="number"] {
   outline: none;
   transition: border-color var(--transition);
   -webkit-appearance: none;
+  touch-action: manipulation;
 }
 
 input[type="text"]:focus,
@@ -258,6 +259,16 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .btn-icon:hover {
   color: var(--gold);
+}
+
+.btn-icon-danger:hover {
+  color: var(--danger) !important;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .btn-text {
@@ -351,7 +362,8 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .balance-you {
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--gold);
   margin-left: 6px;
 }
@@ -386,6 +398,59 @@ input[type="number"]::-webkit-outer-spin-button {
 .settlement-arrow { color: var(--text-muted); }
 .settlement-to { color: var(--success); font-weight: 600; }
 .settlement-amount { margin-left: auto; font-weight: 700; color: var(--gold); }
+
+.btn-confirm-tx {
+  background: none;
+  border: 1px solid var(--success);
+  color: var(--success);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 8px;
+  transition: background var(--transition);
+}
+
+.btn-confirm-tx:hover {
+  background: rgba(76, 175, 130, 0.15);
+}
+
+.settlement-confirmed {
+  opacity: 0.6;
+}
+
+.confirmed-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.btn-unconfirm-tx {
+  background: none;
+  border: 1px solid var(--text-muted);
+  color: var(--text-muted);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 8px;
+  transition: all var(--transition);
+}
+
+.btn-unconfirm-tx:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
 
 /* ===== ACTIVE SESSION PREVIEW ===== */
 .active-session-preview {
@@ -558,12 +623,12 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .amount-input {
   width: 80px;
-  text-align: center;
+  text-align: right;
   background: var(--bg-3);
   border: 1px solid #3a3a3a;
   border-radius: var(--radius-sm);
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   padding: 6px 8px;
 }
@@ -695,6 +760,12 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 12px;
   color: var(--text-muted);
   text-transform: capitalize;
+}
+
+.history-item-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 /* ===== MODALS ===== */
@@ -937,6 +1008,17 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 48px;
   margin-bottom: 12px;
   opacity: 0.4;
+}
+
+/* ===== CHART ===== */
+.modal-chart {
+  max-height: 90vh;
+}
+
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 260px;
 }
 
 /* ===== FOOTER SIGNATURE ===== */

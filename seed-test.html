@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <title>Seed testdata</title>
+  <style>
+    body { background: #1a1a1a; color: #f0f0f0; font-family: sans-serif; padding: 32px; }
+    button { background: #d4af37; color: #1a1a1a; border: none; padding: 14px 28px; font-size: 16px; font-weight: 700; border-radius: 8px; cursor: pointer; }
+    #log { margin-top: 24px; font-size: 14px; line-height: 2; color: #4caf82; }
+    .err { color: #e05252; }
+  </style>
+</head>
+<body>
+  <h2 style="color:#d4af37">Black Book – Skapa testdata</h2>
+  <p>Grupp: <strong>FAKE01</strong> &nbsp;|&nbsp; Spelare: Hefner, Bullen, Traxen, Dawod, Majscht &nbsp;|&nbsp; 50 rundor &nbsp;|&nbsp; Datum: 2026-03-24</p>
+  <button id="btn">Skapa testdata</button>
+  <div id="log"></div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getDatabase, ref, set, push, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsMy2yM7ywVHqV8v4jGHsiuwiUEj5hxUI",
+      authDomain: "blackbook-dd35e.firebaseapp.com",
+      databaseURL: "https://blackbook-dd35e-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "blackbook-dd35e",
+      storageBucket: "blackbook-dd35e.firebasestorage.app",
+      messagingSenderId: "135964327938",
+      appId: "1:135964327938:web:6bf37522a409cde935a71b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const log = document.getElementById('log');
+
+    function print(msg, err = false) {
+      const d = document.createElement('div');
+      d.textContent = msg;
+      if (err) d.className = 'err';
+      log.appendChild(d);
+    }
+
+    // Generera 50 zero-sum rundor med 5 spelare (belopp i öre, steg om 25 kr)
+    function generateRounds(numPlayers, numRounds) {
+      const steps = [-100, -75, -50, -25, 25, 50, 75, 100]; // i 100-öre = kr
+      const rounds = [];
+      for (let r = 0; r < numRounds; r++) {
+        const amounts = new Array(numPlayers).fill(0);
+        // Fördela slumpmässigt med zero-sum
+        for (let i = 0; i < numPlayers - 1; i++) {
+          const s = steps[Math.floor(Math.random() * steps.length)];
+          amounts[i] += s;
+          amounts[numPlayers - 1] -= s;
+        }
+        // Shuffle så sista spelaren inte alltid är "resten"
+        for (let i = amounts.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [amounts[i], amounts[j]] = [amounts[j], amounts[i]];
+        }
+        // Konvertera kr → öre (multiplicera med 100)
+        rounds.push(amounts.map(a => a * 100));
+      }
+      return rounds;
+    }
+
+    document.getElementById('btn').addEventListener('click', async () => {
+      log.innerHTML = '';
+      const GROUP = 'FAKE01';
+
+      try {
+        // Datum: 2026-03-24 kl 18:00
+        const sessionStart = new Date('2026-03-24T18:00:00').getTime();
+        const sessionEnd   = new Date('2026-03-24T23:30:00').getTime();
+
+        // 1. Skapa grupp
+        await set(ref(db, `groups/${GROUP}/meta`), {
+          name: GROUP,
+          createdAt: sessionStart,
+          currency: 'SEK'
+        });
+        print('✓ Grupp skapad: ' + GROUP);
+
+        // 2. Skapa spelare
+        const players = [
+          { name: 'Hefner',  color: '#5291e0' },
+          { name: 'Bullen',  color: '#4caf82' },
+          { name: 'Traxen',  color: '#e05252' },
+          { name: 'Dawod',   color: '#d4af37' },
+          { name: 'Majscht', color: '#9b52e0' },
+        ];
+        const playerIds = [];
+        for (const p of players) {
+          const r = push(ref(db, `groups/${GROUP}/players`));
+          await set(r, { name: p.name, color: p.color, joinedAt: sessionStart });
+          playerIds.push(r.key);
+          print(`✓ Spelare skapad: ${p.name} (${r.key})`);
+        }
+
+        // 3. Skapa session (stängd)
+        const sessionRef = push(ref(db, `groups/${GROUP}/sessions`));
+        const sessionId = sessionRef.key;
+        await set(sessionRef, {
+          type: 'quick',
+          name: 'Lördagspoker',
+          status: 'closed',
+          createdAt: sessionStart,
+          closedAt: sessionEnd,
+          playerIds: Object.fromEntries(playerIds.map(id => [id, true]))
+        });
+        print('✓ Session skapad: ' + sessionId);
+
+        // 4. Generera och spara 50 rundor
+        const rounds = generateRounds(players.length, 50);
+        const roundInterval = Math.floor((sessionEnd - sessionStart) / 50);
+
+        for (let ri = 0; ri < rounds.length; ri++) {
+          const t = sessionStart + ri * roundInterval;
+          for (let pi = 0; pi < playerIds.length; pi++) {
+            const amount = rounds[ri][pi];
+            if (amount === 0) continue;
+            const eRef = push(ref(db, `groups/${GROUP}/entries`));
+            await set(eRef, {
+              sessionId,
+              playerId: playerIds[pi],
+              amount,
+              type: 'quick',
+              timestamp: t + pi * 100,
+              deleted: false,
+              deletedAt: null,
+              note: ''
+            });
+            const balRef = ref(db, `groups/${GROUP}/balances/${playerIds[pi]}/net`);
+            await runTransaction(balRef, cur => (cur || 0) + amount);
+          }
+          print(`✓ Runda ${ri + 1} registrerad`);
+        }
+
+        print('');
+        print('✅ Klart! Gå med i grupp FAKE01 med valfritt namn.');
+
+      } catch (err) {
+        print('FEL: ' + err.message, true);
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -32,7 +32,7 @@
           <h2>Gå med i en grupp</h2>
           <div class="form-group">
             <label for="input-group-code">Gruppkod</label>
-            <input type="text" id="input-group-code" placeholder="T.ex. ABC123" maxlength="6" autocomplete="off" autocapitalize="characters" />
+            <input type="text" id="input-group-code" placeholder="T.ex. ABC123" maxlength="10" autocomplete="off" autocapitalize="characters" />
           </div>
           <div class="form-group">
             <label for="input-player-name">Ditt namn</label>
@@ -63,6 +63,11 @@
           <div id="settlements-list" class="settlements-list"></div>
         </section>
 
+        <section class="section" id="section-confirmed" style="display:none">
+          <h2 class="section-title">Bekräftade transaktioner</h2>
+          <div id="confirmed-list" class="settlements-list"></div>
+        </section>
+
         <section class="section">
           <h2 class="section-title">Aktiv session</h2>
           <div id="active-session-preview" class="active-session-preview">
@@ -79,7 +84,11 @@
       <header class="app-header">
         <button id="btn-back-dashboard" class="btn-icon">←</button>
         <h1 class="header-title" id="session-title">Session</h1>
-        <button id="btn-close-session" class="btn-text btn-danger">Stäng</button>
+        <div class="header-actions">
+          <button id="btn-session-chart" class="btn-icon" title="Visa diagram">📈</button>
+          <button id="btn-delete-session" class="btn-icon btn-icon-danger" title="Radera session">🗑</button>
+          <button id="btn-close-session" class="btn-text btn-danger">Avsluta session</button>
+        </div>
       </header>
 
       <div class="screen-content">
@@ -176,6 +185,20 @@
     </div>
   </div>
 
+  <!-- Chart Modal -->
+  <div id="modal-chart" class="modal-overlay hidden">
+    <div class="modal modal-chart">
+      <h2>Diagram</h2>
+      <div class="chart-container">
+        <canvas id="session-chart"></canvas>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-close-chart" class="btn btn-secondary btn-full">Stäng</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

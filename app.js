@@ -4,11 +4,13 @@
 import {
   createGroup, groupExists, addPlayer, getPlayers,
   listenPlayers, listenSessions, listenBalances, listenEntries,
-  createSession, getMeta, deletePlayer
+  createSession, getMeta, deletePlayer, reopenSession, deleteSession,
+  confirmTransaction, unconfirmTransaction, listenConfirmations
 } from './modules/firebase.js';
 import {
   showScreen, showToast,
-  renderBalances, renderSettlements, renderActiveSessionPreview,
+  renderBalances, renderSettlements, renderConfirmedTransactions,
+  renderActiveSessionPreview,
   renderQuickMode, renderHistory, renderSessionDetail,
   renderGroupPlayers, renderSessionPlayerSelect
 } from './modules/ui.js';
@@ -24,6 +26,7 @@ const state = {
   sessions: {},
   balances: {},
   entries: {},
+  confirmations: {},
   activeSessionId: null,
   unsubscribers: [],
   newSessionSelectedPlayers: []
@@ -116,6 +119,10 @@ async function connectToGroup() {
     listenEntries(groupCode, entries => {
       state.entries = entries || {};
       onEntriesUpdate();
+    }),
+    listenConfirmations(groupCode, confirmations => {
+      state.confirmations = confirmations || {};
+      onConfirmationsUpdate();
     })
   );
 
@@ -153,11 +160,20 @@ function onSessionsUpdate() {
 
 function onBalancesUpdate() {
   renderBalances(state.balances, state.players, state.playerId);
-  renderSettlements(state.balances, state.players);
+  renderSettlements(state.balances, state.players, state.confirmations);
+  renderConfirmedTransactions(state.balances, state.players, state.confirmations);
+}
+
+function onConfirmationsUpdate() {
+  renderSettlements(state.balances, state.players, state.confirmations);
+  renderConfirmedTransactions(state.balances, state.players, state.confirmations);
 }
 
 function onEntriesUpdate() {
-  // no-op: quick mode doesn't need live entry updates
+  // Refresh chart if it's open
+  if (!document.getElementById('modal-chart').classList.contains('hidden')) {
+    handleOpenChart();
+  }
 }
 
 // ===== QUICK MODE LOGIC =====
@@ -228,9 +244,14 @@ function bindEvents() {
     handleRemovePlayer(btn.dataset.playerId);
   });
 
-  // Session back / close
+  // Session back / close / delete / chart
   document.getElementById('btn-back-dashboard').addEventListener('click', () => showScreen('dashboard'));
   document.getElementById('btn-close-session').addEventListener('click', handleCloseSession);
+  document.getElementById('btn-delete-session').addEventListener('click', handleDeleteActiveSession);
+  document.getElementById('btn-session-chart').addEventListener('click', handleOpenChart);
+  document.getElementById('btn-close-chart').addEventListener('click', () => {
+    document.getElementById('modal-chart').classList.add('hidden');
+  });
 
   // Quick mode – amount buttons (delegated)
   document.getElementById('quick-players-list').addEventListener('click', e => {
@@ -239,7 +260,7 @@ function bindEvents() {
     const id = btn.dataset.playerId;
     const input = document.querySelector(`#quick-players-list .amount-input[data-player-id="${id}"]`);
     if (!input) return;
-    const step = 50;
+    const step = 25;
     const val = parseFloat(input.value) || 0;
     input.value = btn.dataset.action === 'inc' ? val + step : val - step;
     updateQuickSum();
@@ -252,14 +273,21 @@ function bindEvents() {
   // Quick submit
   document.getElementById('btn-quick-submit').addEventListener('click', handleQuickSubmit);
 
-  // History item click
+  // History item buttons (delegated)
   document.getElementById('history-list').addEventListener('click', e => {
-    const item = e.target.closest('.history-item');
-    if (!item) return;
-    const sessionId = item.dataset.sessionId;
-    const session = { ...state.sessions[sessionId], id: sessionId };
-    renderSessionDetail(session, state.entries, state.players);
-    document.getElementById('modal-session-detail').classList.remove('hidden');
+    const detailBtn = e.target.closest('.history-btn-detail');
+    const reopenBtn = e.target.closest('.history-btn-reopen');
+    const deleteBtn = e.target.closest('.history-btn-delete');
+    if (detailBtn) {
+      const sessionId = detailBtn.dataset.sessionId;
+      const session = { ...state.sessions[sessionId], id: sessionId };
+      renderSessionDetail(session, state.entries, state.players);
+      document.getElementById('modal-session-detail').classList.remove('hidden');
+    } else if (reopenBtn) {
+      handleReopenSession(reopenBtn.dataset.sessionId);
+    } else if (deleteBtn) {
+      handleDeleteSession(deleteBtn.dataset.sessionId);
+    }
   });
 
   document.getElementById('btn-close-detail').addEventListener('click', () => {
@@ -269,6 +297,20 @@ function bindEvents() {
   // Active session preview click → go to session
   document.getElementById('active-session-preview').addEventListener('click', () => {
     if (state.activeSessionId) showScreen('session');
+  });
+
+  // Bekräfta transaktion
+  document.getElementById('settlements-list').addEventListener('click', e => {
+    const btn = e.target.closest('.btn-confirm-tx');
+    if (!btn) return;
+    handleConfirmTransaction(btn.dataset.from, btn.dataset.to, parseInt(btn.dataset.amount));
+  });
+
+  // Ångra bekräftad transaktion
+  document.getElementById('confirmed-list').addEventListener('click', e => {
+    const btn = e.target.closest('.btn-unconfirm-tx');
+    if (!btn) return;
+    handleUnconfirmTransaction(btn.dataset.from, btn.dataset.to, parseInt(btn.dataset.amount));
   });
 
   // Close modals on overlay click
@@ -404,6 +446,132 @@ async function handleCloseSession() {
   await endSession(state.groupCode, state.activeSessionId);
   showScreen('dashboard');
   showToast('Session stängd');
+}
+
+async function handleConfirmTransaction(from, to, amount) {
+  const fromName = state.players[from]?.name || from;
+  const toName = state.players[to]?.name || to;
+  const amountKr = Math.round(amount / 100);
+  if (!confirm(`Har ${fromName} betalat ${toName} ${amountKr} kr?`)) return;
+  await confirmTransaction(state.groupCode, from, to, amount);
+  showToast('Transaktion bekräftad');
+}
+
+async function handleUnconfirmTransaction(from, to, amount) {
+  const fromName = state.players[from]?.name || from;
+  const toName = state.players[to]?.name || to;
+  const amountKr = Math.round(amount / 100);
+  if (!confirm(`Ångra bekräftelsen att ${fromName} betalat ${toName} ${amountKr} kr?`)) return;
+  await unconfirmTransaction(state.groupCode, from, to, amount);
+  showToast('Bekräftelse ångrad');
+}
+
+async function handleDeleteActiveSession() {
+  if (!state.activeSessionId) return;
+  const session = state.sessions[state.activeSessionId];
+  const label = session?.name || 'Session';
+  if (!confirm(`Radera "${label}"? Detta går inte att ångra.`)) return;
+  await deleteSession(state.groupCode, state.activeSessionId);
+  showScreen('dashboard');
+  showToast('Session raderad');
+}
+
+let chartInstance = null;
+
+function handleOpenChart() {
+  const sessionId = state.activeSessionId;
+  if (!sessionId) { showToast('Ingen aktiv session'); return; }
+
+  const sessionEntries = Object.values(state.entries)
+    .filter(e => e.sessionId === sessionId && !e.deleted)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const session = state.sessions[sessionId];
+  const playerIds = session?.playerIds ? Object.keys(session.playerIds) : [];
+
+  // Build cumulative data per player, one point per "round" (grouped by timestamp proximity)
+  // Each submit call creates entries at roughly the same timestamp – group by < 5s apart
+  const rounds = [];
+  let prevTime = null;
+  for (const e of sessionEntries) {
+    if (prevTime === null || e.timestamp - prevTime > 5000) {
+      rounds.push([]);
+      prevTime = e.timestamp;
+    }
+    rounds[rounds.length - 1].push(e);
+  }
+
+  const colors = ['#e05252','#e08c52','#d4af37','#4caf82','#5291e0','#9b52e0','#e052b8','#52d4c8'];
+  const datasets = playerIds
+    .filter(id => state.players[id])
+    .map((id, i) => {
+      let cumulative = 0;
+      const data = [0]; // starts at 0
+      rounds.forEach(round => {
+        const entry = round.find(e => e.playerId === id);
+        cumulative += entry ? entry.amount / 100 : 0;
+        data.push(Math.round(cumulative));
+      });
+      const color = state.players[id].color || colors[i % colors.length];
+      return {
+        label: state.players[id].name,
+        data,
+        borderColor: color,
+        backgroundColor: color + '22',
+        tension: 0.3,
+        pointRadius: 4,
+        fill: false
+      };
+    });
+
+  const labels = ['Start', ...rounds.map((_, i) => `R${i + 1}`)];
+
+  document.getElementById('modal-chart').classList.remove('hidden');
+
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const ctx = document.getElementById('session-chart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: '#f0f0f0', font: { size: 12 } }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#888' }, grid: { color: '#2e2e2e' } },
+        y: {
+          ticks: {
+            color: '#888',
+            callback: v => v + ' kr'
+          },
+          grid: { color: '#2e2e2e' }
+        }
+      }
+    }
+  });
+}
+
+async function handleReopenSession(sessionId) {
+  if (state.activeSessionId) {
+    showToast('Stäng den aktiva sessionen först');
+    return;
+  }
+  if (!confirm('Fortsätta denna session?')) return;
+  await reopenSession(state.groupCode, sessionId);
+  showScreen('session');
+  showToast('Session återöppnad');
+}
+
+async function handleDeleteSession(sessionId) {
+  const session = state.sessions[sessionId];
+  const label = session?.name || 'Session';
+  if (!confirm(`Radera "${label}"? Detta går inte att ångra.`)) return;
+  await deleteSession(state.groupCode, sessionId);
+  showToast('Session raderad');
 }
 
 async function handleQuickSubmit() {

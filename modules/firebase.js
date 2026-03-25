@@ -98,6 +98,17 @@ export async function closeSession(groupCode, sessionId) {
   });
 }
 
+export async function reopenSession(groupCode, sessionId) {
+  await update(ref(db, `groups/${groupCode}/sessions/${sessionId}`), {
+    status: 'active',
+    closedAt: null
+  });
+}
+
+export async function deleteSession(groupCode, sessionId) {
+  await set(ref(db, `groups/${groupCode}/sessions/${sessionId}`), null);
+}
+
 export function listenSessions(groupCode, callback) {
   const r = ref(db, `groups/${groupCode}/sessions`);
   return onValue(r, snap => {
@@ -165,6 +176,28 @@ export async function getEntries(groupCode) {
 
 export function listenBalances(groupCode, callback) {
   const r = ref(db, `groups/${groupCode}/balances`);
+  return onValue(r, snap => {
+    callback(snap.exists() ? snap.val() : {});
+  });
+}
+
+// ===== CONFIRMATIONS =====
+
+export async function confirmTransaction(groupCode, from, to, amount) {
+  const key = `${from}_${to}_${amount}`;
+  await set(ref(db, `groups/${groupCode}/confirmations/${key}`), {
+    from, to, amount,
+    confirmedAt: Date.now()
+  });
+}
+
+export async function unconfirmTransaction(groupCode, from, to, amount) {
+  const key = `${from}_${to}_${amount}`;
+  await set(ref(db, `groups/${groupCode}/confirmations/${key}`), null);
+}
+
+export function listenConfirmations(groupCode, callback) {
+  const r = ref(db, `groups/${groupCode}/confirmations`);
   return onValue(r, snap => {
     callback(snap.exists() ? snap.val() : {});
   });
