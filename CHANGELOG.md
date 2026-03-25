@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-03-25 (uppdatering 3)
+- Namnfältet döljs tills giltig gruppkod angetts
+- Dropdown med befintliga spelarnamn vid join – undviker dubblettnamn
+- Ny modal för namnval när man skapar en ny grupp
+- ⌂-knapp i headern för att snabbt komma till startskärmen
+- Gruppkodsfältet visar alltid versaler
+- Belopps-inputfält fixad bredd (72px) – ryms 4-siffriga belopp
+- Seed-skript uppdaterat: 5 spelare (Hefner, Bullen, Traxen, Dawod, Majscht), 50 rundor, datum 2026-03-24
+
 ## 2026-03-25 (uppdatering 2)
 - Bekräfta transaktioner i Uppgörelse med ✓-knapp och bekräftelsedialog
 - Ny sektion "Bekräftade transaktioner" med möjlighet att ångra

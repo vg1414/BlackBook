@@ -204,9 +204,11 @@ function bindEvents() {
   document.getElementById('input-group-code').addEventListener('keydown', e => {
     if (e.key === 'Enter') handleJoin();
   });
+  document.getElementById('input-group-code').addEventListener('blur', handleCodeBlur);
   document.getElementById('input-player-name').addEventListener('keydown', e => {
     if (e.key === 'Enter') handleJoin();
   });
+  document.getElementById('select-player-name').addEventListener('change', handlePlayerSelectChange);
 
   // Bottom nav
   document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -224,6 +226,23 @@ function bindEvents() {
   document.getElementById('fab-new-session').addEventListener('click', openNewSessionModal);
   document.getElementById('btn-cancel-session').addEventListener('click', closeNewSessionModal);
   document.getElementById('btn-start-session').addEventListener('click', handleStartSession);
+
+  // Create group – name modal
+  document.getElementById('btn-confirm-create-name').addEventListener('click', handleConfirmCreateName);
+  document.getElementById('input-create-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleConfirmCreateName();
+  });
+
+  // Go to lobby
+  document.getElementById('btn-go-lobby').addEventListener('click', () => {
+    if (!confirm('Gå till startskärmen? Du kan gå med igen när som helst.')) return;
+    state.unsubscribers.forEach(fn => fn());
+    state.unsubscribers = [];
+    clearSavedGroup();
+    document.getElementById('bottom-nav').classList.add('hidden');
+    showScreen('lobby');
+    showToast('Du lämnade gruppen');
+  });
 
   // Group settings
   document.getElementById('btn-group-settings').addEventListener('click', openGroupModal);
@@ -323,44 +342,107 @@ function bindEvents() {
 
 // ===== HANDLERS =====
 
+async function handleCodeBlur() {
+  const code = document.getElementById('input-group-code').value.trim().toUpperCase();
+  const selectGroup = document.getElementById('player-select-group');
+  const nameGroup = document.getElementById('player-name-group');
+  const select = document.getElementById('select-player-name');
+
+  if (code.length < 4) {
+    selectGroup.style.display = 'none';
+    nameGroup.style.display = 'none';
+    return;
+  }
+
+  const exists = await groupExists(code);
+  if (!exists) return;
+
+  const players = await getPlayers(code);
+  const playerList = Object.entries(players).filter(([, p]) => !p.deleted);
+
+  if (playerList.length > 0) {
+    select.innerHTML =
+      playerList.map(([id, p]) => `<option value="${id}">${p.name}</option>`).join('') +
+      `<option value="__new__">+ Skriv in nytt namn</option>`;
+    selectGroup.style.display = '';
+    nameGroup.style.display = 'none';
+    document.getElementById('input-player-name').value = '';
+  } else {
+    selectGroup.style.display = 'none';
+    nameGroup.style.display = '';
+  }
+}
+
+function handlePlayerSelectChange() {
+  const val = document.getElementById('select-player-name').value;
+  const nameGroup = document.getElementById('player-name-group');
+  if (val === '__new__') {
+    nameGroup.style.display = '';
+    document.getElementById('input-player-name').focus();
+  } else {
+    nameGroup.style.display = 'none';
+  }
+}
+
 async function handleJoin() {
   const code = document.getElementById('input-group-code').value.trim().toUpperCase();
-  const name = document.getElementById('input-player-name').value.trim();
-
   if (!code || code.length < 4) { showToast('Ange en giltig gruppkod'); return; }
-  if (!name) { showToast('Ange ditt namn'); return; }
 
   const exists = await groupExists(code);
   if (!exists) { showToast('Gruppen hittades inte'); return; }
 
-  // Check if player name already exists
-  const players = await getPlayers(code);
-  let playerId = Object.entries(players).find(([, p]) => p.name.toLowerCase() === name.toLowerCase())?.[0];
-  if (!playerId) {
-    playerId = await addPlayer(code, name, randomColor());
+  const selectEl = document.getElementById('select-player-name');
+  const selectGroup = document.getElementById('player-select-group');
+  const usingSelect = selectGroup.style.display !== 'none' && selectEl.value !== '__new__';
+
+  let playerId, playerName;
+
+  if (usingSelect) {
+    // Existing player chosen from list
+    const players = await getPlayers(code);
+    playerId = selectEl.value;
+    playerName = players[playerId]?.name;
+    if (!playerId || !playerName) { showToast('Ogiltig spelare'); return; }
+  } else {
+    // New name typed manually
+    const name = document.getElementById('input-player-name').value.trim();
+    if (!name) { showToast('Ange ditt namn'); return; }
+    const players = await getPlayers(code);
+    const existing = Object.entries(players).find(([, p]) => p.name.toLowerCase() === name.toLowerCase() && !p.deleted);
+    playerId = existing ? existing[0] : await addPlayer(code, name, randomColor());
+    playerName = name;
   }
 
   state.groupCode = code;
   state.playerId = playerId;
-  state.playerName = name;
-  saveGroup(code, playerId, name);
+  state.playerName = playerName;
+  saveGroup(code, playerId, playerName);
   await connectToGroup();
-  showToast(`Välkommen, ${name}!`);
+  showToast(`Välkommen, ${playerName}!`);
 }
 
 async function handleCreate() {
-  const name = document.getElementById('input-player-name').value.trim();
-  if (!name) { showToast('Ange ditt namn innan du skapar grupp'); return; }
-
   const code = generateCode();
   await createGroup(code);
+  state.groupCode = code;
+  state.pendingGroupCode = code;
+  document.getElementById('input-group-code').value = code;
+  document.getElementById('input-create-name').value = '';
+  document.getElementById('modal-create-name').classList.remove('hidden');
+  setTimeout(() => document.getElementById('input-create-name').focus(), 100);
+}
+
+async function handleConfirmCreateName() {
+  const name = document.getElementById('input-create-name').value.trim();
+  if (!name) { showToast('Ange ditt namn'); return; }
+
+  const code = state.groupCode;
   const playerId = await addPlayer(code, name, randomColor());
 
-  state.groupCode = code;
   state.playerId = playerId;
   state.playerName = name;
   saveGroup(code, playerId, name);
-  document.getElementById('input-group-code').value = code;
+  document.getElementById('modal-create-name').classList.add('hidden');
   await connectToGroup();
   showToast(`Grupp skapad! Kod: ${code}`);
 }

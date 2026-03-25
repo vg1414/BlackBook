@@ -32,9 +32,13 @@
           <h2>Gå med i en grupp</h2>
           <div class="form-group">
             <label for="input-group-code">Gruppkod</label>
-            <input type="text" id="input-group-code" placeholder="T.ex. ABC123" maxlength="10" autocomplete="off" autocapitalize="characters" />
+            <input type="text" id="input-group-code" placeholder="T.ex. ABC123" maxlength="10" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase" />
           </div>
-          <div class="form-group">
+          <div class="form-group" id="player-select-group" style="display:none">
+            <label for="select-player-name">Välj ditt namn</label>
+            <select id="select-player-name" class="input-select"></select>
+          </div>
+          <div class="form-group" id="player-name-group" style="display:none">
             <label for="input-player-name">Ditt namn</label>
             <input type="text" id="input-player-name" placeholder="T.ex. David" maxlength="20" autocomplete="off" />
           </div>
@@ -48,6 +52,7 @@
     <!-- DASHBOARD -->
     <div id="screen-dashboard" class="screen">
       <header class="app-header">
+        <button id="btn-go-lobby" class="btn-icon" title="Byt grupp / Startskärm">⌂</button>
         <h1 class="header-title">Black Book</h1>
         <button id="btn-group-settings" class="btn-icon" title="Grupptinställningar">⚙</button>
       </header>
@@ -130,6 +135,21 @@
   </nav>
 
   <!-- MODALS -->
+
+  <!-- Create Group Name Modal -->
+  <div id="modal-create-name" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Välj ditt namn</h2>
+      <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">Gruppen är skapad! Ange ditt namn för att gå med.</p>
+      <div class="form-group">
+        <label for="input-create-name">Ditt namn</label>
+        <input type="text" id="input-create-name" placeholder="T.ex. David" maxlength="20" autocomplete="off" />
+      </div>
+      <div class="modal-actions">
+        <button id="btn-confirm-create-name" class="btn btn-primary btn-full">Gå med</button>
+      </div>
+    </div>
+  </div>
 
   <!-- New Session Modal -->
   <div id="modal-new-session" class="modal-overlay hidden">
