@@ -318,6 +318,16 @@ function bindEvents() {
     if (state.activeSessionId) showScreen('session');
   });
 
+  // Settlement toggle
+  document.getElementById('btn-toggle-settlements').addEventListener('click', () => {
+    const btn = document.getElementById('btn-toggle-settlements');
+    const panel = document.getElementById('settlements-panel');
+    const isOpen = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+    panel.setAttribute('aria-hidden', isOpen ? 'true' : 'false');
+    panel.classList.toggle('open', !isOpen);
+  });
+
   // Bekräfta transaktion
   document.getElementById('settlements-list').addEventListener('click', e => {
     const btn = e.target.closest('.btn-confirm-tx');
@@ -362,6 +372,7 @@ async function handleCodeBlur() {
 
   if (playerList.length > 0) {
     select.innerHTML =
+      `<option value="" disabled selected>— Välj ditt namn —</option>` +
       playerList.map(([id, p]) => `<option value="${id}">${p.name}</option>`).join('') +
       `<option value="__new__">+ Skriv in nytt namn</option>`;
     selectGroup.style.display = '';
@@ -393,7 +404,12 @@ async function handleJoin() {
 
   const selectEl = document.getElementById('select-player-name');
   const selectGroup = document.getElementById('player-select-group');
-  const usingSelect = selectGroup.style.display !== 'none' && selectEl.value !== '__new__';
+  const usingSelect = selectGroup.style.display !== 'none' && selectEl.value !== '__new__' && selectEl.value !== '';
+
+  if (selectGroup.style.display !== 'none' && selectEl.value === '') {
+    showToast('Välj ditt namn i listan');
+    return;
+  }
 
   let playerId, playerName;
 

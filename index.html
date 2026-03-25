@@ -9,6 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="Black Book" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <title>Black Book</title>
 </head>
@@ -26,6 +29,11 @@
         <div class="logo">
           <div class="logo-icon">♠</div>
           <h1>Black Book</h1>
+          <div class="logo-divider">
+            <span class="logo-divider-line"></span>
+            <span class="logo-divider-diamond">◆</span>
+            <span class="logo-divider-line"></span>
+          </div>
           <p class="logo-sub">Skuldboken</p>
         </div>
         <div class="card">
@@ -64,8 +72,17 @@
         </section>
 
         <section class="section" id="section-settlements">
-          <h2 class="section-title">Uppgörelse</h2>
-          <div id="settlements-list" class="settlements-list"></div>
+          <button class="settlement-toggle" id="btn-toggle-settlements" aria-expanded="false">
+            <span class="settlement-toggle-label">
+              <span class="settlement-toggle-icon">⚖</span>
+              Förslag till uppgörelse
+            </span>
+            <span class="settlement-toggle-badge" id="settlements-badge"></span>
+            <span class="settlement-toggle-chevron">›</span>
+          </button>
+          <div id="settlements-panel" class="settlements-panel" aria-hidden="true">
+            <div id="settlements-list" class="settlements-list"></div>
+          </div>
         </section>
 
         <section class="section" id="section-confirmed" style="display:none">
@@ -108,7 +125,7 @@
 
     <!-- HISTORY -->
     <div id="screen-history" class="screen">
-      <header class="app-header">
+      <header class="app-header app-header-centered">
         <h1 class="header-title">Historik</h1>
       </header>
       <div class="screen-content">

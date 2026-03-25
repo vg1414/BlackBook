@@ -71,6 +71,7 @@ export function renderBalances(balances, players, currentPlayerId) {
 export function renderSettlements(balances, players, confirmations = {}) {
   const container = document.getElementById('settlements-list');
   const section = document.getElementById('section-settlements');
+  const badge = document.getElementById('settlements-badge');
 
   if (!players || Object.keys(players).length === 0) {
     section.style.display = 'none';
@@ -92,6 +93,13 @@ export function renderSettlements(balances, players, confirmations = {}) {
   }
 
   section.style.display = 'block';
+
+  // Update badge count
+  if (badge) {
+    badge.textContent = pending.length;
+    badge.classList.toggle('visible', pending.length > 0);
+  }
+
   container.innerHTML = pending.map(t => {
     const fromName = players[t.from]?.name || t.from;
     const toName = players[t.to]?.name || t.to;
