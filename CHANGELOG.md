@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-03-26
+- Diagram: tooltip-färgruta och legend-ruta är nu solid ifylld i spelarens färg
+
 ## 2026-03-25 (uppdatering 3)
 - Namnfältet döljs tills giltig gruppkod angetts
 - Dropdown med befintliga spelarnamn vid join – undviker dubblettnamn
