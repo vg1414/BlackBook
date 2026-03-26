@@ -687,17 +687,33 @@ function handleOpenChart() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
+        tooltip: {
+          backgroundColor: '#1a1a1a',
+          titleColor: '#f0f0f0',
+          bodyColor: '#f0f0f0',
+          borderColor: '#444',
+          borderWidth: 1,
+          usePointStyle: true,
+          callbacks: {
+            labelColor(context) {
+              const color = context.dataset.borderColor;
+              return { borderColor: color, backgroundColor: color };
+            }
+          }
+        },
         legend: {
           labels: {
             color: '#f0f0f0',
             font: { size: 12 },
-            usePointStyle: false,
+            usePointStyle: true,
+            pointStyle: 'rect',
             padding: 12,
             generateLabels(chart) {
               return chart.data.datasets.map((ds, i) => ({
                 text: ds.label,
                 fillStyle: ds.borderColor,
                 strokeStyle: ds.borderColor,
+                pointStyle: 'rect',
                 fontColor: '#f0f0f0',
                 lineWidth: 0,
                 hidden: !chart.isDatasetVisible(i),
