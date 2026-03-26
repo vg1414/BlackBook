@@ -5,7 +5,8 @@ import {
   createGroup, groupExists, addPlayer, getPlayers,
   listenPlayers, listenSessions, listenBalances, listenEntries,
   createSession, getMeta, deletePlayer, reopenSession, deleteSession,
-  confirmTransaction, unconfirmTransaction, listenConfirmations
+  confirmTransaction, unconfirmTransaction, listenConfirmations,
+  clearBook
 } from './modules/firebase.js';
 import {
   showScreen, showToast,
@@ -167,6 +168,57 @@ function onBalancesUpdate() {
 function onConfirmationsUpdate() {
   renderSettlements(state.balances, state.players, state.confirmations);
   renderConfirmedTransactions(state.balances, state.players, state.confirmations);
+  checkAllSettled();
+}
+
+function checkAllSettled() {
+  if (!state.players || Object.keys(state.players).length === 0) return;
+
+  const netMap = {};
+  Object.keys(state.players).forEach(id => {
+    netMap[id] = state.balances[id]?.net || 0;
+  });
+
+  const allNetsZero = Object.values(netMap).every(v => v === 0);
+  if (allNetsZero) return;
+
+  const confirmedKeys = new Set(Object.keys(state.confirmations));
+
+  // Inline minimizePayments to avoid dynamic import
+  const transactions = minimizePaymentsLocal(netMap);
+  const pending = transactions.filter(t => !confirmedKeys.has(`${t.from}_${t.to}_${t.amount}`));
+
+  if (pending.length === 0 && transactions.length > 0) {
+    setTimeout(() => {
+      if (confirm('Alla uppgörelser är bekräftade! Vill du stänga boken och nollställa saldona?')) {
+        handleClearBook();
+      }
+    }, 400);
+  }
+}
+
+function minimizePaymentsLocal(netMap) {
+  const creditors = [], debtors = [];
+  Object.entries(netMap).forEach(([id, net]) => {
+    if (net > 0) creditors.push({ id, amount: net });
+    else if (net < 0) debtors.push({ id, amount: -net });
+  });
+  const transactions = [];
+  let i = 0, j = 0;
+  while (i < creditors.length && j < debtors.length) {
+    const pay = Math.min(creditors[i].amount, debtors[j].amount);
+    transactions.push({ from: debtors[j].id, to: creditors[i].id, amount: pay });
+    creditors[i].amount -= pay;
+    debtors[j].amount -= pay;
+    if (creditors[i].amount === 0) i++;
+    if (debtors[j].amount === 0) j++;
+  }
+  return transactions;
+}
+
+async function handleClearBook() {
+  await clearBook(state.groupCode);
+  showToast('Boken stängd!');
 }
 
 function onEntriesUpdate() {
@@ -636,7 +688,23 @@ function handleOpenChart() {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          labels: { color: '#f0f0f0', font: { size: 12 } }
+          labels: {
+            color: '#f0f0f0',
+            font: { size: 12 },
+            usePointStyle: false,
+            padding: 12,
+            generateLabels(chart) {
+              return chart.data.datasets.map((ds, i) => ({
+                text: ds.label,
+                fillStyle: ds.borderColor,
+                strokeStyle: ds.borderColor,
+                fontColor: '#f0f0f0',
+                lineWidth: 0,
+                hidden: !chart.isDatasetVisible(i),
+                datasetIndex: i
+              }));
+            }
+          }
         }
       },
       scales: {

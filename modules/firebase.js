@@ -203,6 +203,11 @@ export function listenConfirmations(groupCode, callback) {
   });
 }
 
+export async function clearBook(groupCode) {
+  // Remove all confirmations only – balances are kept for history
+  await set(ref(db, `groups/${groupCode}/confirmations`), null);
+}
+
 // ===== META =====
 
 export async function getMeta(groupCode) {
