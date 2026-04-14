@@ -1,4 +1,4 @@
-const CACHE_NAME = 'blackbook-v5';
+const CACHE_NAME = 'blackbook-v6';
 const STATIC_ASSETS = [
   '/BlackBook/',
   '/BlackBook/index.html',
@@ -13,10 +13,16 @@ const STATIC_ASSETS = [
   '/BlackBook/apple-touch-icon-180x180.png'
 ];
 
-// Install – cache static assets
+// Install – cache static assets (en och en, så en miss inte kraschar allt)
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.all(
+        STATIC_ASSETS.map(url =>
+          cache.add(url).catch(() => {/* ignorera enskilda missar */})
+        )
+      )
+    )
   );
   self.skipWaiting();
 });

@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 9)
+- Fix: SW v6 – cacheinstallation kraschar inte längre om en enstaka fil saknas
+
 ## 2026-04-14 (uppdatering 8)
 - Fix: borttaget felaktigt anrop till renderBuyinMode (funktionen finns inte längre)
 - UX: anteckningsblocket syns alltid, även innan första rundan registrerats
