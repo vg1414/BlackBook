@@ -109,6 +109,9 @@
         <button id="btn-back-dashboard" class="btn-icon">←</button>
         <h1 class="header-title" id="session-title">Session</h1>
         <div class="header-actions">
+          <button id="btn-toggle-unit" class="btn-unit-toggle-inline" aria-label="Växla poäng/kronor">
+            <span class="unit-coin-label" id="unit-coin-label">p</span>
+          </button>
           <button id="btn-session-chart" class="btn-icon" title="Visa diagram">📈</button>
           <button id="btn-session-settings" class="btn-icon" title="Sessionsinställningar">⚙</button>
           <button id="btn-delete-session" class="btn-icon btn-icon-danger" title="Radera session">🗑</button>
@@ -267,7 +270,7 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

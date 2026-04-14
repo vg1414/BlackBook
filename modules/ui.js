@@ -216,7 +216,7 @@ export function renderQuickMode(players, sessionPlayerIds) {
         <div class="quick-player-row" data-player-id="${id}">
           <div class="player-avatar" style="background:${p.color}20;color:${p.color}">${p.name.charAt(0)}</div>
           <span class="quick-player-name">${escHtml(p.name)}</span>
-          <input class="amount-input" type="number" value="0" data-player-id="${id}" inputmode="numeric" />
+          <input class="amount-input" type="number" value="" placeholder="0" data-player-id="${id}" inputmode="numeric" />
         </div>
       `;
     }).join('');
@@ -227,7 +227,7 @@ export function renderQuickMode(players, sessionPlayerIds) {
 
 // ===== HISTORY =====
 
-export function renderHistory(sessions, players) {
+export function renderHistory(sessions, players, entries) {
   const container = document.getElementById('history-list');
   if (!sessions) {
     container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>Ingen historik ännu</p></div>';
@@ -246,12 +246,41 @@ export function renderHistory(sessions, players) {
   container.innerHTML = closed.map(([id, s]) => {
     const date = s.closedAt ? new Date(s.closedAt).toLocaleDateString('sv-SE') : '–';
     const label = s.name || 'Session';
+    const pointValue = s._storedPointValue || s.pointValue || null;
+
+    // Beräkna totaler per spelare för denna session
+    const playerIds = s.playerIds ? Object.keys(s.playerIds) : [];
+    const totals = {};
+    playerIds.forEach(pid => { totals[pid] = 0; });
+    if (entries) {
+      Object.values(entries).forEach(e => {
+        if (e.sessionId === id && !e.deleted && totals[e.playerId] !== undefined) {
+          totals[e.playerId] += e.amount;
+        }
+      });
+    }
+
+    const totalsHtml = playerIds
+      .filter(pid => players[pid])
+      .map(pid => {
+        const p = players[pid];
+        const val = totals[pid] || 0;
+        const display = formatPoints(val, pointValue);
+        const cls = val > 0 ? 'positive' : val < 0 ? 'negative' : '';
+        return `<span class="history-total-chip ${cls}">
+          <span class="history-total-dot" style="background:${p.color}"></span>
+          <span class="history-total-name">${escHtml(p.name)}</span>
+          <span class="history-total-val">${display}</span>
+        </span>`;
+      }).join('');
+
     return `
       <div class="history-item" data-session-id="${id}">
         <div class="history-item-header">
           <span class="history-item-name">${escHtml(label)}</span>
           <span class="history-item-date">${date}</span>
         </div>
+        ${totalsHtml ? `<div class="history-totals">${totalsHtml}</div>` : ''}
         <div class="history-item-actions">
           <button class="btn btn-secondary btn-sm history-btn-detail" data-session-id="${id}">Visa</button>
           <button class="btn btn-secondary btn-sm history-btn-reopen" data-session-id="${id}">Fortsätt</button>

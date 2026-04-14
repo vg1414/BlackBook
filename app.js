@@ -217,7 +217,6 @@ function onPlayersUpdate() {
   if (state.activeSessionId && state.sessions[state.activeSessionId]) {
     const session = state.sessions[state.activeSessionId];
     renderQuickMode(state.players, session.playerIds);
-    renderBuyinMode(state.players, session.playerIds, state.entries);
   }
 }
 
@@ -226,7 +225,7 @@ function onSessionsUpdate() {
   state.activeSessionId = active ? active[0] : null;
 
   renderActiveSessionPreview(state.sessions, state.players);
-  renderHistory(state.sessions, state.players);
+  renderHistory(state.sessions, state.players, state.entries);
 
   if (state.activeSessionId) {
     const session = state.sessions[state.activeSessionId];
@@ -236,6 +235,8 @@ function onSessionsUpdate() {
 
   // Uppdatera saldon med nytt pointValue
   onBalancesUpdate();
+  renderSessionRounds();
+  updateUnitToggleBtn(true);
 }
 
 function getActivePointValue() {
@@ -308,6 +309,7 @@ async function handleClearBook() {
 
 function onEntriesUpdate() {
   renderSessionRounds();
+  renderHistory(state.sessions, state.players, state.entries);
   // Refresh chart if it's open
   const chartModal = document.getElementById('modal-chart');
   if (!chartModal.classList.contains('hidden') && !chartModal.classList.contains('closing')) {
@@ -348,28 +350,12 @@ function renderSessionRounds() {
     if (totals[e.playerId] !== undefined) totals[e.playerId] += e.amount;
   });
 
-  // Beräkna löpande total för spelaren i fokus (2-spelarläge: spelaren med flest entries / mestadels vinnaren)
-  // Vi räknar kumulativ summa per runda (äldst→nyast) för att visa total-cirkel
-  const focusId = twoPlayer ? playerIds[0] : null;
-  const runningTotals = []; // index matchar rounds (äldst→nyast)
-  if (focusId) {
-    let cum = 0;
-    rounds.forEach(round => {
-      round.forEach(e => { if (e.playerId === focusId) cum += e.amount; });
-      runningTotals.push(cum);
-    });
-  }
-
   // Nyaste omgången överst (rounds är sorterade äldst→nyast, vi vänder)
-  const reversedRounds = rounds.slice().reverse();
-  const roundsHtml = reversedRounds.map((round, i) => {
+  const roundsHtml = rounds.slice().reverse().map((round, i) => {
     const isLatest = i === 0;
-    // i=0 är nyast → originalindex = rounds.length - 1 - i
-    const origIdx = rounds.length - 1 - i;
 
     let parts;
     if (twoPlayer) {
-      // Visa bara vinnaren (positiv)
       const winner = round.find(e => e.amount > 0);
       if (winner) {
         const player = state.players[winner.playerId];
@@ -387,21 +373,26 @@ function renderSessionRounds() {
       }).join('');
     }
 
-    // Löpande total-cirkel (bara 2-spelarläge)
-    let totalCircle = '';
-    if (twoPlayer && focusId) {
-      const cumVal = runningTotals[origIdx];
-      const cumDisplay = formatPoints(cumVal, pointValue);
-      const sign = cumVal > 0 ? '+' : '';
-      totalCircle = `<span class="round-running-total">${sign}${cumDisplay}</span>`;
-    }
-
-    return `<div class="round-row ${isLatest ? 'round-latest' : 'round-old'}">${parts}${totalCircle}</div>`;
+    return `<div class="round-row ${isLatest ? 'round-latest' : 'round-old'}">${parts}</div>`;
   }).join('');
+
+  // Stor total-cirkel (2-spelarläge: visa spelaren i fokus totalt)
+  let totalCircleHtml = '';
+  if (twoPlayer) {
+    const focusId = playerIds[0];
+    const focusTotal = totals[focusId] || 0;
+    const absPoints = Math.abs(focusTotal / 100);
+    const circleDisplay = pointValue
+      ? Math.abs(Math.round(absPoints * pointValue)) + ' kr'
+      : absPoints + ' p';
+    totalCircleHtml = `<div class="notepad-total-circle">${circleDisplay}</div>`;
+  }
 
   // Totalsumma-rad
   let totalHtml = '';
   if (playerIds.length > 0) {
+    const n = playerIds.length;
+    const cols = n <= 2 ? 2 : n === 3 ? 3 : n === 4 ? 2 : 3;
     const totalParts = playerIds.map(id => {
       const p = state.players[id];
       const display = formatPoints(totals[id], pointValue);
@@ -412,10 +403,10 @@ function renderSessionRounds() {
         <span class="total-value">${display}</span>
       </div>`;
     }).join('');
-    totalHtml = `<div class="rounds-total-row">${totalParts}</div>`;
+    totalHtml = `<div class="rounds-total-row" style="--total-cols:${cols}">${totalParts}</div>`;
   }
 
-  container.innerHTML = roundsHtml;
+  container.innerHTML = (twoPlayer ? totalCircleHtml : '') + roundsHtml;
 
   // Uppdatera sticky total
   let stickyEl = document.getElementById('session-sticky-total');
@@ -527,6 +518,7 @@ function bindEvents() {
         return;
       }
       showScreen(screen);
+      updateUnitToggleBtn();
     });
   });
 
@@ -572,12 +564,13 @@ function bindEvents() {
   });
 
   // Session back / close / delete / chart / settings
-  document.getElementById('btn-back-dashboard').addEventListener('click', () => showScreen('dashboard'));
+  document.getElementById('btn-back-dashboard').addEventListener('click', () => { showScreen('dashboard'); updateUnitToggleBtn(); });
   document.getElementById('btn-close-session').addEventListener('click', handleCloseSession);
   document.getElementById('btn-delete-session').addEventListener('click', handleDeleteActiveSession);
   document.getElementById('btn-session-chart').addEventListener('click', handleOpenChart);
   document.getElementById('btn-close-chart-x').addEventListener('click', () => closeModal('modal-chart'));
   document.getElementById('btn-session-settings').addEventListener('click', openSessionSettingsModal);
+  document.getElementById('btn-toggle-unit').addEventListener('click', handleToggleUnit);
   document.getElementById('btn-close-session-settings-x').addEventListener('click', () => closeModal('modal-session-settings'));
   document.getElementById('btn-save-session-settings').addEventListener('click', handleSaveSessionSettings);
 
@@ -944,8 +937,28 @@ function handleOpenChart() {
   openModal('modal-chart');
 
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+  // Plugin: ritar linjen vänster→höger via canvas clip
+  const drawPlugin = {
+    id: 'drawReveal',
+    beforeDraw(chart) {
+      const { ctx: c, chartArea } = chart;
+      if (!chartArea) return;
+      const progress = chart._revealProgress ?? 0;
+      const clipX = chartArea.left + (chartArea.right - chartArea.left) * progress;
+      c.save();
+      c.beginPath();
+      c.rect(0, 0, clipX, chart.height);
+      c.clip();
+    },
+    afterDraw(chart) {
+      chart.ctx.restore();
+    }
+  };
+
   const ctx = document.getElementById('session-chart').getContext('2d');
   chartInstance = new Chart(ctx, {
+    plugins: [drawPlugin],
     type: 'line',
     data: { labels, datasets },
     options: {
@@ -993,6 +1006,7 @@ function handleOpenChart() {
           }
         }
       },
+      animation: false,
       scales: {
         x: { ticks: { color: '#888' }, grid: { color: '#2e2e2e' } },
         y: {
@@ -1005,6 +1019,20 @@ function handleOpenChart() {
       }
     }
   });
+
+  // Animera reveal vänster→höger
+  const duration = 900;
+  const start = performance.now();
+  function easeInOutQuart(t) {
+    return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
+  }
+  function animate(now) {
+    const t = Math.min((now - start) / duration, 1);
+    chartInstance._revealProgress = easeInOutQuart(t);
+    chartInstance.render();
+    if (t < 1) requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
 }
 
 async function handleReopenSession(sessionId) {
@@ -1115,6 +1143,55 @@ function openSessionSettingsModal() {
   document.getElementById('input-session-name-edit').value = session?.name || '';
   document.getElementById('input-session-point-value-modal').value = session?.pointValue || '';
   openModal('modal-session-settings');
+}
+
+async function handleToggleUnit() {
+  if (!state.activeSessionId) return;
+  const session = state.sessions[state.activeSessionId];
+  const currentPV = session?.pointValue || null;
+
+  if (currentPV) {
+    // Har kr-värde → toggle: spara undan och sätt null, eller återställ
+    const stored = session._storedPointValue || currentPV;
+    await updateSessionMeta(state.groupCode, state.activeSessionId, {
+      pointValue: null,
+      _storedPointValue: stored
+    });
+  } else {
+    // Inget kr-värde → försök återställa sparat, annars be om värde
+    const stored = session?._storedPointValue;
+    if (stored) {
+      await updateSessionMeta(state.groupCode, state.activeSessionId, {
+        pointValue: stored,
+        _storedPointValue: stored
+      });
+    } else {
+      const input = prompt('Hur många kr är ett poäng värt?');
+      const pv = parseFloat(input);
+      if (!isNaN(pv) && pv > 0) {
+        await updateSessionMeta(state.groupCode, state.activeSessionId, {
+          pointValue: pv,
+          _storedPointValue: pv
+        });
+      }
+    }
+  }
+}
+
+function updateUnitToggleBtn(animate = false) {
+  const btn = document.getElementById('btn-toggle-unit');
+  const label = document.getElementById('unit-coin-label');
+  if (!btn || !label) return;
+  const pv = getActivePointValue();
+  btn.classList.toggle('active', !!pv);
+  if (animate) {
+    btn.classList.add('flipping');
+    setTimeout(() => btn.classList.remove('flipping'), 260);
+  }
+  label.textContent = pv ? 'kr' : 'p';
+  // Visa alltid i session-headern (knappen är inline där nu)
+  const onSession = document.getElementById('screen-session')?.classList.contains('active');
+  btn.style.display = onSession ? 'flex' : 'none';
 }
 
 async function handleSaveSessionSettings() {

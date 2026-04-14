@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 8)
+- Fix: borttaget felaktigt anrop till renderBuyinMode (funktionen finns inte längre)
+- UX: anteckningsblocket syns alltid, även innan första rundan registrerats
+- UX: p/kr-switchen flyttad till session-headern (aldrig i vägen för innehållet)
+- UX: inputfält börjar tomma istället för "0" – enklare att föra score
+- UX: namnraden längst ner layoutas smart per antal spelare (2→2 kol, 3→3, 4→2+2, 5→3+2)
+
 ## 2026-04-14 (uppdatering 7)
 - Session: spelarregistreringen är nu sticky – bara historiken under scrollar
 - Diagram: visar poäng (p) eller kronor (kr) baserat på sessionens inställning
