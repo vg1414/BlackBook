@@ -108,12 +108,12 @@ body {
   font-weight: 700;
   font-style: italic;
   letter-spacing: 2px;
-  background: linear-gradient(135deg, #b8922a 0%, #e8c84a 40%, #d4af37 55%, #f5e070 70%, #c9a227 100%);
+  background: linear-gradient(90deg, #b8922a 0%, #f5e070 30%, #d4af37 50%, #f5e070 70%, #c9a227 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  background-size: 200% auto;
-  animation: shimmer 4s linear infinite;
+  background-size: 300% auto;
+  animation: shimmer 4s ease-in-out infinite;
 }
 
 /* ===== LOBBY ===== */
@@ -163,12 +163,12 @@ body {
   font-style: italic;
   color: var(--gold);
   letter-spacing: 3px;
-  background: linear-gradient(135deg, #b8922a 0%, #e8c84a 40%, #d4af37 55%, #f5e070 70%, #c9a227 100%);
+  background: linear-gradient(90deg, #b8922a 0%, #f5e070 30%, #d4af37 50%, #f5e070 70%, #c9a227 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  background-size: 200% auto;
-  animation: shimmer 4s linear infinite, logoTitleFade 0.6s var(--ease-out-expo) 0.25s both;
+  background-size: 300% auto;
+  animation: shimmer 4s ease-in-out infinite, logoTitleFade 0.6s var(--ease-out-expo) 0.25s both;
   margin-bottom: 0;
 }
 
@@ -179,7 +179,8 @@ body {
 
 @keyframes shimmer {
   0% { background-position: 0% center; }
-  100% { background-position: 200% center; }
+  50% { background-position: 100% center; }
+  100% { background-position: 0% center; }
 }
 
 .logo-divider {
@@ -1562,8 +1563,11 @@ input[type="number"]::-webkit-outer-spin-button {
   z-index: 9999;
   white-space: nowrap;
   box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+}
+
+.toast:not(.hidden) {
   animation: toastIn 0.35s var(--spring) both;
-  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 @keyframes toastIn {
@@ -1575,6 +1579,7 @@ input[type="number"]::-webkit-outer-spin-button {
   opacity: 0;
   transform: translateX(-50%) translateY(-8px) scale(0.96);
   pointer-events: none;
+  visibility: hidden;
 }
 
 /* ===== MISC ===== */
