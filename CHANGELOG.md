@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 6)
+- 2-spelarläge: nytt anteckningsblock-gränssnitt – ange belopp och tryck på vinnaren
+- Skrivstilsfont (Caveat) på siffror och spelarnamn i registreringen
+- Fix: service worker bumpad till v3 för att tvinga om iOS PWA-cache
+
 ## 2026-04-14 (uppdatering 5)
 - 2-spelarläge: tryck på den nedre spelaren för att byta vem som är plus (inputfältet)
 

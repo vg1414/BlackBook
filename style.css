@@ -758,6 +758,7 @@ input[type="number"]::-webkit-outer-spin-button {
   margin-bottom: 16px;
 }
 
+/* ===== QUICK PLAYER ROW (fler spelare) ===== */
 .quick-player-row {
   background: var(--bg-2);
   border-radius: var(--radius-sm);
@@ -772,29 +773,181 @@ input[type="number"]::-webkit-outer-spin-button {
   font-weight: 500;
 }
 
-.mirror-amount {
-  font-size: 16px;
+/* ===== NOTEPAD REGISTER (2-spelarläge) ===== */
+.notepad-register {
+  position: relative;
+  background: #f5e96a;
+  border-radius: 4px 4px 6px 6px;
+  padding: 20px 20px 24px;
+  box-shadow:
+    0 2px 0 #c8bc3a,
+    0 4px 0 #b0a530,
+    0 6px 12px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.6);
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+
+/* Spiral-hål i toppen */
+.notepad-register::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 10px;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 28px,
+    #1a1a1a 28px,
+    #1a1a1a 44px
+  );
+  opacity: 0.18;
+}
+
+/* Röd marginal-linje till vänster */
+.notepad-register::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 44px;
+  width: 1.5px;
+  background: rgba(220, 80, 80, 0.55);
+}
+
+/* Linjerade rader bakom */
+.notepad-lines-bg {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 31px,
+    rgba(100,140,200,0.18) 31px,
+    rgba(100,140,200,0.18) 32px
+  );
+  pointer-events: none;
+}
+
+.notepad-amount-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 8px;
+  margin-bottom: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+.notepad-amount-input {
+  font-family: 'Caveat', cursive;
+  font-size: 64px;
+  font-weight: 700;
+  color: #1a1a1a;
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 180px;
+  text-align: center;
+  line-height: 1;
+  caret-color: #c0392b;
+  -moz-appearance: textfield;
+}
+
+.notepad-amount-input::-webkit-inner-spin-button,
+.notepad-amount-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.notepad-amount-input::placeholder {
+  color: rgba(26,26,26,0.25);
+}
+
+.notepad-currency {
+  font-family: 'Caveat', cursive;
+  font-size: 28px;
   font-weight: 600;
-  min-width: 60px;
-  text-align: right;
+  color: rgba(26,26,26,0.45);
+  line-height: 1;
+  position: relative;
+  top: -4px;
 }
 
-.two-player-mirror {
+.notepad-winner-label {
+  font-family: 'Caveat', cursive;
+  font-size: 15px;
+  color: rgba(26,26,26,0.4);
+  text-align: center;
+  margin-bottom: 14px;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  position: relative;
+  z-index: 1;
+}
+
+.notepad-players {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.notepad-player-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.35);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 10px 18px;
   cursor: pointer;
-  opacity: 0.75;
-  transition: opacity 0.15s, background 0.15s;
+  transition: all 0.15s ease;
+  min-width: 90px;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.two-player-mirror:active {
-  opacity: 1;
-  background: rgba(255,255,255,0.07);
+.notepad-player-btn:active {
+  transform: scale(0.96);
 }
 
-.swap-hint {
-  font-size: 11px;
-  color: var(--text-muted, #888);
-  margin-left: 8px;
-  white-space: nowrap;
+.notepad-player-btn.selected {
+  background: rgba(255,255,255,0.75);
+  border-color: rgba(26,26,26,0.35);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.notepad-player-initial {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.notepad-player-name {
+  font-family: 'Caveat', cursive;
+  font-size: 19px;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1;
+}
+
+.notepad-player-btn.selected .notepad-player-name {
+  color: #111;
+}
+
+.notepad-vs {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  color: rgba(26,26,26,0.35);
+  font-weight: 400;
 }
 
 .amount-control {

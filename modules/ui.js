@@ -196,25 +196,30 @@ export function renderQuickMode(players, sessionPlayerIds) {
   if (twoPlayer) {
     const [idA, idB] = playersToShow;
     const pA = players[idA], pB = players[idB];
-    // plusPlayerId bestämmer vem som har inputfältet (plus-sidan)
-    const plusId = container.dataset.plusPlayerId || idA;
-    const minusId = plusId === idA ? idB : idA;
-    const pPlus = players[plusId], pMinus = players[minusId];
-    container.dataset.plusPlayerId = plusId;
     container.innerHTML = `
-      <div class="quick-player-row two-player-active" data-player-id="${plusId}">
-        <div class="player-avatar" style="background:${pPlus.color}20;color:${pPlus.color}">${pPlus.name.charAt(0)}</div>
-        <span class="quick-player-name">${escHtml(pPlus.name)}</span>
-        <input class="amount-input" type="number" value="0" data-player-id="${plusId}" inputmode="numeric" />
-      </div>
-      <div class="quick-player-row two-player-mirror" data-player-id="${minusId}">
-        <div class="player-avatar" style="background:${pMinus.color}20;color:${pMinus.color}">${pMinus.name.charAt(0)}</div>
-        <span class="quick-player-name">${escHtml(pMinus.name)}</span>
-        <span class="mirror-amount" id="mirror-amount-${minusId}" style="color:${pMinus.color}">0 p</span>
-        <span class="swap-hint">Tryck för att byta</span>
+      <div class="notepad-register">
+        <div class="notepad-lines-bg"></div>
+        <div class="notepad-amount-row">
+          <input class="notepad-amount-input" type="number" value="" placeholder="0" data-player-id="" inputmode="numeric" />
+          <span class="notepad-currency">kr</span>
+        </div>
+        <div class="notepad-winner-label">vinnare</div>
+        <div class="notepad-players">
+          <button class="notepad-player-btn" data-player-id="${idA}" data-color="${pA.color}">
+            <span class="notepad-player-initial" style="background:${pA.color}20;color:${pA.color}">${pA.name.charAt(0)}</span>
+            <span class="notepad-player-name">${escHtml(pA.name)}</span>
+          </button>
+          <span class="notepad-vs">vs</span>
+          <button class="notepad-player-btn" data-player-id="${idB}" data-color="${pB.color}">
+            <span class="notepad-player-initial" style="background:${pB.color}20;color:${pB.color}">${pB.name.charAt(0)}</span>
+            <span class="notepad-player-name">${escHtml(pB.name)}</span>
+          </button>
+        </div>
       </div>
     `;
-    setTimeout(() => container.querySelector('.amount-input')?.select(), 50);
+    // Sätt default vinnare till ingen (omarkerad)
+    container.dataset.winnerId = '';
+    setTimeout(() => container.querySelector('.notepad-amount-input')?.focus(), 50);
   } else {
     container.innerHTML = playersToShow.map((id, i) => {
       const p = players[id];
@@ -230,16 +235,6 @@ export function renderQuickMode(players, sessionPlayerIds) {
   }
 }
 
-// Byt vilken spelare som är plus i tvåspelarläget
-export function swapTwoPlayerPlus(players, sessionPlayerIds) {
-  const container = document.getElementById('quick-players-list');
-  const ids = Object.keys(sessionPlayerIds || {}).filter(id => players[id]);
-  if (ids.length !== 2) return;
-  const currentPlus = container.dataset.plusPlayerId || ids[0];
-  // Sätt den andra spelaren som ny plus
-  container.dataset.plusPlayerId = currentPlus === ids[0] ? ids[1] : ids[0];
-  renderQuickMode(players, sessionPlayerIds);
-}
 
 // ===== HISTORY =====
 
