@@ -1,4 +1,4 @@
-const CACHE_NAME = 'blackbook-v4';
+const CACHE_NAME = 'blackbook-v5';
 const STATIC_ASSETS = [
   '/BlackBook/',
   '/BlackBook/index.html',
@@ -9,7 +9,6 @@ const STATIC_ASSETS = [
   '/BlackBook/modules/ui.js',
   '/BlackBook/modules/session.js',
   '/BlackBook/manifest.json',
-  '/BlackBook/nanobanana.png',
   '/BlackBook/favicon.png',
   '/BlackBook/apple-touch-icon-180x180.png'
 ];
@@ -32,31 +31,30 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch – cache-first for static, network-first for Firebase
+// Fetch – network-first for everything (fallback to cache offline)
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Firebase requests → network-first, no cache
-  if (url.hostname.includes('firebase') || url.hostname.includes('google')) {
+  // Firebase/Google requests → network only, no cache
+  if (url.hostname.includes('firebase') || url.hostname.includes('googleapis') || url.hostname.includes('gstatic')) {
     event.respondWith(
       fetch(request).catch(() => new Response('', { status: 503 }))
     );
     return;
   }
 
-  // Static assets → cache-first
+  // Everything else → network-first, cache as fallback
   event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-      return fetch(request).then(response => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-        }
-        return response;
-      }).catch(() => {
-        // Offline fallback for navigation
+    fetch(request).then(response => {
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+      }
+      return response;
+    }).catch(() => {
+      return caches.match(request).then(cached => {
+        if (cached) return cached;
         if (request.mode === 'navigate') {
           return caches.match('/BlackBook/index.html');
         }
