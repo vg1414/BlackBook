@@ -196,16 +196,22 @@ export function renderQuickMode(players, sessionPlayerIds) {
   if (twoPlayer) {
     const [idA, idB] = playersToShow;
     const pA = players[idA], pB = players[idB];
+    // plusPlayerId bestämmer vem som har inputfältet (plus-sidan)
+    const plusId = container.dataset.plusPlayerId || idA;
+    const minusId = plusId === idA ? idB : idA;
+    const pPlus = players[plusId], pMinus = players[minusId];
+    container.dataset.plusPlayerId = plusId;
     container.innerHTML = `
-      <div class="quick-player-row" data-player-id="${idA}">
-        <div class="player-avatar" style="background:${pA.color}20;color:${pA.color}">${pA.name.charAt(0)}</div>
-        <span class="quick-player-name">${escHtml(pA.name)}</span>
-        <input class="amount-input" type="number" value="0" data-player-id="${idA}" inputmode="numeric" />
+      <div class="quick-player-row two-player-active" data-player-id="${plusId}">
+        <div class="player-avatar" style="background:${pPlus.color}20;color:${pPlus.color}">${pPlus.name.charAt(0)}</div>
+        <span class="quick-player-name">${escHtml(pPlus.name)}</span>
+        <input class="amount-input" type="number" value="0" data-player-id="${plusId}" inputmode="numeric" />
       </div>
-      <div class="quick-player-row two-player-mirror" data-player-id="${idB}">
-        <div class="player-avatar" style="background:${pB.color}20;color:${pB.color}">${pB.name.charAt(0)}</div>
-        <span class="quick-player-name">${escHtml(pB.name)}</span>
-        <span class="mirror-amount" id="mirror-amount-${idB}" style="color:${pB.color}">0 p</span>
+      <div class="quick-player-row two-player-mirror" data-player-id="${minusId}">
+        <div class="player-avatar" style="background:${pMinus.color}20;color:${pMinus.color}">${pMinus.name.charAt(0)}</div>
+        <span class="quick-player-name">${escHtml(pMinus.name)}</span>
+        <span class="mirror-amount" id="mirror-amount-${minusId}" style="color:${pMinus.color}">0 p</span>
+        <span class="swap-hint">Tryck för att byta</span>
       </div>
     `;
     setTimeout(() => container.querySelector('.amount-input')?.select(), 50);
@@ -222,6 +228,17 @@ export function renderQuickMode(players, sessionPlayerIds) {
     }).join('');
     setTimeout(() => container.querySelector('.amount-input')?.select(), 50);
   }
+}
+
+// Byt vilken spelare som är plus i tvåspelarläget
+export function swapTwoPlayerPlus(players, sessionPlayerIds) {
+  const container = document.getElementById('quick-players-list');
+  const ids = Object.keys(sessionPlayerIds || {}).filter(id => players[id]);
+  if (ids.length !== 2) return;
+  const currentPlus = container.dataset.plusPlayerId || ids[0];
+  // Sätt den andra spelaren som ny plus
+  container.dataset.plusPlayerId = currentPlus === ids[0] ? ids[1] : ids[0];
+  renderQuickMode(players, sessionPlayerIds);
 }
 
 // ===== HISTORY =====

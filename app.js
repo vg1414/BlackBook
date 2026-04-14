@@ -12,7 +12,7 @@ import {
   showScreen, showToast,
   renderBalances, renderSettlements, renderConfirmedTransactions,
   renderActiveSessionPreview,
-  renderQuickMode, renderHistory, renderSessionDetail,
+  renderQuickMode, swapTwoPlayerPlus, renderHistory, renderSessionDetail,
   renderGroupPlayers, renderSessionPlayerSelect
 } from './modules/ui.js';
 import { formatPoints } from './modules/settlement.js';
@@ -573,6 +573,16 @@ function bindEvents() {
 
   document.getElementById('quick-players-list').addEventListener('input', e => {
     if (e.target.classList.contains('amount-input')) updateQuickSum();
+  });
+
+  // Klick på spegelraden byter vem som är plus i 2-spelarläget
+  document.getElementById('quick-players-list').addEventListener('click', e => {
+    const row = e.target.closest('.two-player-mirror');
+    if (!row) return;
+    const session = state.activeSessionId && state.sessions[state.activeSessionId];
+    if (!session) return;
+    swapTwoPlayerPlus(state.players, session.playerIds);
+    updateQuickSum();
   });
 
   // Quick submit

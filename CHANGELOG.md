@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 5)
+- 2-spelarläge: tryck på den nedre spelaren för att byta vem som är plus (inputfältet)
+
 ## 2026-04-14 (uppdatering 4)
 - Stäng-knappar ersatta med X i höger hörn på alla modaler
 - Ny sessionsinställningsmodal (⚙) för namn och poängvärde direkt i sessionen
