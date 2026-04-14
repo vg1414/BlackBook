@@ -1,4 +1,4 @@
-const CACHE_NAME = 'blackbook-v1';
+const CACHE_NAME = 'blackbook-v2';
 const STATIC_ASSETS = [
   '/BlackBook/',
   '/BlackBook/index.html',
@@ -9,8 +9,9 @@ const STATIC_ASSETS = [
   '/BlackBook/modules/ui.js',
   '/BlackBook/modules/session.js',
   '/BlackBook/manifest.json',
-  '/BlackBook/icon-192.png',
-  '/BlackBook/icon-512.png'
+  '/BlackBook/nanobanana.png',
+  '/BlackBook/favicon.png',
+  '/BlackBook/apple-touch-icon-180x180.png'
 ];
 
 // Install – cache static assets
