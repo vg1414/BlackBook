@@ -19,6 +19,10 @@ import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
 import { sekToOre, oreToSek } from './modules/settlement.js';
 
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ===== STATE =====
 const state = {
   groupCode: null,
@@ -143,8 +147,11 @@ function renderSavedGroups() {
         : '';
       return `
         <button class="saved-group-btn" data-code="${g.groupCode}">
-          <span class="saved-group-code">${g.groupCode}</span>
-          ${g.groupName ? `<span class="saved-group-label">${escHtml(g.groupName)}</span>` : `<span class="saved-group-label saved-group-label--muted">${dateStr}</span>`}
+          <span class="saved-group-left">
+            <span class="saved-group-code">${g.groupCode}</span>
+            ${dateStr ? `<span class="saved-group-date">${dateStr}</span>` : ''}
+          </span>
+          <span class="saved-group-label">${g.groupName ? escHtml(g.groupName) : ''}</span>
           <span class="saved-group-name">${escHtml(g.playerName)}</span>
           <span class="saved-group-arrow">›</span>
         </button>
@@ -226,7 +233,7 @@ async function connectToGroup() {
 function onPlayersUpdate() {
   const pointValue = getActivePointValue();
   renderBalances(state.balances, state.players, state.playerId, pointValue);
-  renderSettlements(state.balances, state.players, state.confirmations, pointValue);
+  renderSettlements(state.balances, state.players, state.confirmations, getActivePointValueForSettlement());
   renderGroupPlayers(state.players, state.playerId);
   if (state.activeSessionId && state.sessions[state.activeSessionId]) {
     const session = state.sessions[state.activeSessionId];
@@ -257,20 +264,29 @@ function onSessionsUpdate() {
 
 function getActivePointValue() {
   if (!state.activeSessionId) return null;
-  return state.sessions[state.activeSessionId]?.pointValue || null;
+  const s = state.sessions[state.activeSessionId];
+  return s?.pointValue || null;
+}
+
+// Alltid kr om kr/poäng är satt – oavsett toggle-läge
+function getActivePointValueForSettlement() {
+  if (!state.activeSessionId) return null;
+  const s = state.sessions[state.activeSessionId];
+  return s?.pointValue || s?._storedPointValue || null;
 }
 
 function onBalancesUpdate() {
   const pointValue = getActivePointValue();
+  const settlementPV = getActivePointValueForSettlement();
   renderBalances(state.balances, state.players, state.playerId, pointValue);
-  renderSettlements(state.balances, state.players, state.confirmations, pointValue);
-  renderConfirmedTransactions(state.balances, state.players, state.confirmations, pointValue);
+  renderSettlements(state.balances, state.players, state.confirmations, settlementPV);
+  renderConfirmedTransactions(state.balances, state.players, state.confirmations, settlementPV);
 }
 
 function onConfirmationsUpdate() {
-  const pointValue = getActivePointValue();
-  renderSettlements(state.balances, state.players, state.confirmations, pointValue);
-  renderConfirmedTransactions(state.balances, state.players, state.confirmations, pointValue);
+  const settlementPV = getActivePointValueForSettlement();
+  renderSettlements(state.balances, state.players, state.confirmations, settlementPV);
+  renderConfirmedTransactions(state.balances, state.players, state.confirmations, settlementPV);
   checkAllSettled();
 }
 

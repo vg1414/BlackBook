@@ -1921,14 +1921,25 @@ input[type="number"]::-webkit-outer-spin-button {
   background: rgba(212, 175, 55, 0.04);
 }
 
+.saved-group-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 64px;
+}
+
 .saved-group-code {
   font-family: 'Courier New', monospace;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: bold;
   color: var(--gold);
   letter-spacing: 0.08em;
-  flex: 0 0 auto;
-  min-width: 60px;
+}
+
+.saved-group-date {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .saved-group-label {
@@ -1943,17 +1954,10 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 0 8px;
 }
 
-.saved-group-label--muted {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-muted);
-}
-
 .saved-group-name {
   font-size: 13px;
   color: var(--text-muted);
   flex: 0 0 auto;
-  min-width: 40px;
   text-align: right;
   margin-right: 8px;
 }
