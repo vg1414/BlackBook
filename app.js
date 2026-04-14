@@ -409,22 +409,6 @@ function renderSessionRounds() {
 
 function getQuickAmounts() {
   const amounts = {};
-  // Notepad 2-spelarläge: läs vinnare och belopp
-  const notepadInput = document.querySelector('.notepad-amount-input');
-  if (notepadInput) {
-    const winnerId = document.getElementById('quick-players-list').dataset.winnerId;
-    const val = parseFloat(notepadInput.value) || 0;
-    if (winnerId && val !== 0) {
-      // Hitta förlorarens id
-      const allBtns = document.querySelectorAll('.notepad-player-btn');
-      let loserId = null;
-      allBtns.forEach(btn => { if (btn.dataset.playerId !== winnerId) loserId = btn.dataset.playerId; });
-      amounts[winnerId] = val;
-      if (loserId) amounts[loserId] = -val;
-    }
-    return amounts;
-  }
-  // Fler spelare: vanliga inputs
   document.querySelectorAll('#quick-players-list .amount-input').forEach(input => {
     const id = input.dataset.playerId;
     amounts[id] = parseFloat(input.value) || 0;
@@ -433,10 +417,20 @@ function getQuickAmounts() {
 }
 
 function updateQuickSum() {
-  // Notepad 2-spelarläge hanterar sin egen visning via CSS/klicklyssnare
-  if (document.querySelector('.notepad-amount-input')) return;
-
   const amounts = getQuickAmounts();
+
+  // Uppdatera spegelbelopp om det är 2 spelare
+  const inputs = document.querySelectorAll('#quick-players-list .amount-input');
+  if (inputs.length === 1) {
+    const valA = parseFloat(inputs[0].value) || 0;
+    const mirrorEl = document.querySelector('[id^="mirror-amount-"]');
+    if (mirrorEl) {
+      const pointValue = getActivePointValue();
+      mirrorEl.textContent = formatPoints(-valA * 100, pointValue);
+    }
+    return;
+  }
+
   const total = Object.values(amounts).reduce((s, v) => s + v, 0);
   const el = document.getElementById('quick-sum');
   el.textContent = total === 0 ? '0 kr' : `${total > 0 ? '+' : ''}${total.toFixed(0)} kr`;
@@ -581,21 +575,6 @@ function bindEvents() {
     if (e.target.classList.contains('amount-input')) updateQuickSum();
   });
 
-  // Notepad: klick på spelarknapp markerar vinnaren
-  document.getElementById('quick-players-list').addEventListener('click', e => {
-    const btn = e.target.closest('.notepad-player-btn');
-    if (!btn) return;
-    const container = document.getElementById('quick-players-list');
-    const winnerId = btn.dataset.playerId;
-    container.dataset.winnerId = winnerId;
-    // Uppdatera visuell markering
-    document.querySelectorAll('.notepad-player-btn').forEach(b => {
-      b.classList.toggle('selected', b.dataset.playerId === winnerId);
-    });
-    // Uppdatera input så att den får rätt player-id
-    const input = document.querySelector('.notepad-amount-input');
-    if (input) { input.dataset.playerId = winnerId; input.focus(); }
-  });
 
   // Quick submit
   document.getElementById('btn-quick-submit').addEventListener('click', handleQuickSubmit);
@@ -922,6 +901,10 @@ function handleOpenChart() {
     rounds[rounds.length - 1].push(e);
   }
 
+  const pointValue = getActivePointValue(); // kr per poäng, eller null
+  const useKr = !!pointValue;
+  const unitLabel = useKr ? 'kr' : 'p';
+
   const colors = ['#e05252','#e08c52','#d4af37','#4caf82','#5291e0','#9b52e0','#e052b8','#52d4c8'];
   const datasets = playerIds
     .filter(id => state.players[id])
@@ -930,7 +913,8 @@ function handleOpenChart() {
       const data = [0]; // starts at 0
       rounds.forEach(round => {
         const entry = round.find(e => e.playerId === id);
-        cumulative += entry ? entry.amount / 100 : 0;
+        const points = entry ? entry.amount / 100 : 0;
+        cumulative += useKr ? points * pointValue : points;
         data.push(Math.round(cumulative));
       });
       const color = state.players[id].color || colors[i % colors.length];
@@ -966,6 +950,11 @@ function handleOpenChart() {
           borderWidth: 1,
           usePointStyle: true,
           callbacks: {
+            label(context) {
+              const v = context.parsed.y;
+              const sign = v > 0 ? '+' : '';
+              return ` ${context.dataset.label}: ${sign}${v} ${unitLabel}`;
+            },
             labelColor(context) {
               const color = context.dataset.borderColor;
               return { borderColor: color, backgroundColor: color };
@@ -999,7 +988,7 @@ function handleOpenChart() {
         y: {
           ticks: {
             color: '#888',
-            callback: v => v + ' kr'
+            callback: v => v + ' ' + unitLabel
           },
           grid: { color: '#2e2e2e' }
         }
@@ -1029,43 +1018,32 @@ async function handleDeleteSession(sessionId) {
 
 async function handleQuickSubmit() {
   if (!state.activeSessionId) { showToast('Ingen aktiv session'); return; }
+  const amounts = getQuickAmounts();
+  const playerIds = Object.keys(amounts);
 
-  // Notepad 2-spelarläge
-  const notepadInput = document.querySelector('.notepad-amount-input');
-  if (notepadInput) {
-    const container = document.getElementById('quick-players-list');
-    const winnerId = container.dataset.winnerId;
-    const val = parseFloat(notepadInput.value) || 0;
-    if (!winnerId) { showToast('Välj en vinnare'); return; }
-    if (val <= 0) { showToast('Ange ett belopp'); return; }
+  // 2-spelarläge: fyll i motspelaren automatiskt
+  if (playerIds.length === 1) {
+    const idA = playerIds[0];
     const session = state.sessions[state.activeSessionId];
-    const allIds = session?.playerIds ? Object.keys(session.playerIds).filter(id => state.players[id]) : [];
-    const loserId = allIds.find(id => id !== winnerId);
-    if (!loserId) { showToast('Kunde inte hitta motspelaren'); return; }
-    const amounts = { [winnerId]: val, [loserId]: -val };
-    try {
-      await submitQuickResults(state.groupCode, state.activeSessionId, amounts);
-      notepadInput.value = '';
-      container.dataset.winnerId = '';
-      document.querySelectorAll('.notepad-player-btn').forEach(b => b.classList.remove('selected'));
-      showToast('Resultat registrerat!');
-    } catch (err) { showToast(err.message); }
-    return;
+    const allIds = session?.playerIds ? Object.keys(session.playerIds) : [];
+    const idB = allIds.find(id => id !== idA && state.players[id]);
+    if (idB) amounts[idB] = -amounts[idA];
   }
 
-  // Flerspeclarläge
-  const amounts = getQuickAmounts();
   const total = Object.values(amounts).reduce((s, v) => s + v, 0);
   if (Math.abs(total) > 1) {
     showToast(`Summan måste vara 0 (nu: ${total > 0 ? '+' : ''}${total.toFixed(0)} kr)`);
     return;
   }
+
   try {
     await submitQuickResults(state.groupCode, state.activeSessionId, amounts);
     document.querySelectorAll('#quick-players-list .amount-input').forEach(i => i.value = 0);
     updateQuickSum();
     showToast('Resultat registrerat!');
-  } catch (err) { showToast(err.message); }
+  } catch (err) {
+    showToast(err.message);
+  }
 }
 
 function openGroupModal() {

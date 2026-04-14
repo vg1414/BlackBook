@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 7)
+- Session: spelarregistreringen är nu sticky – bara historiken under scrollar
+- Diagram: visar poäng (p) eller kronor (kr) baserat på sessionens inställning
+- Anteckningsblock-look på rundhistoriken (session-rounds-list)
+- Registreringsdelen återställd till tidigare utseende
+
 ## 2026-04-14 (uppdatering 6)
 - 2-spelarläge: nytt anteckningsblock-gränssnitt – ange belopp och tryck på vinnaren
 - Skrivstilsfont (Caveat) på siffror och spelarnamn i registreringen
