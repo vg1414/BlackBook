@@ -29,13 +29,18 @@ const db = getDatabase(app);
 
 // ===== GROUP =====
 
-export async function createGroup(groupCode, currency = 'SEK') {
+export async function createGroup(groupCode, createdBy, currency = 'SEK') {
   const groupRef = ref(db, `groups/${groupCode}/meta`);
   await set(groupRef, {
     name: groupCode,
     createdAt: Date.now(),
-    currency
+    currency,
+    createdBy
   });
+}
+
+export async function deleteGroup(groupCode) {
+  await set(ref(db, `groups/${groupCode}`), null);
 }
 
 export async function groupExists(groupCode) {
@@ -77,7 +82,15 @@ export async function deletePlayer(groupCode, playerId) {
 
 // ===== SESSIONS =====
 
-export async function createSession(groupCode, { type, name, playerIds }) {
+export async function updateSessionPointValue(groupCode, sessionId, pointValue) {
+  await update(ref(db, `groups/${groupCode}/sessions/${sessionId}`), { pointValue });
+}
+
+export async function updateSessionMeta(groupCode, sessionId, fields) {
+  await update(ref(db, `groups/${groupCode}/sessions/${sessionId}`), fields);
+}
+
+export async function createSession(groupCode, { type, name, playerIds, pointValue }) {
   const sessionsRef = ref(db, `groups/${groupCode}/sessions`);
   const newRef = push(sessionsRef);
   await set(newRef, {
@@ -86,6 +99,7 @@ export async function createSession(groupCode, { type, name, playerIds }) {
     status: 'active',
     createdAt: Date.now(),
     closedAt: null,
+    pointValue: pointValue || null,
     playerIds: Object.fromEntries(playerIds.map(id => [id, true]))
   });
   return newRef.key;

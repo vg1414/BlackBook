@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 4)
+- Stäng-knappar ersatta med X i höger hörn på alla modaler
+- Ny sessionsinställningsmodal (⚙) för namn och poängvärde direkt i sessionen
+- Modaler har nu slide-up-animation och swipe-to-close-gest
+- Omvänd historikordning i session: nyaste rundan visas överst
+- 2-spelarläge: visar bara vinnarens namn per runda
+- Sticky totalrad längst ner med grid-layout – fungerar snyggt för 5 spelare
+
+## 2026-04-14 (uppdatering 3)
+- Sticky totalrad redesignad: grid-layout med färgprick, namn och värde per spelare
+- Hanterar 5+ spelare utan att bli trång
+
+## 2026-04-14 (uppdatering 2)
+- Poängläge: sessioner visar poäng istället för kronor
+- Poängvärde (kr/poäng) kan anges vid sessionstart och justeras i efterhand
+- Saldo visar kronor om poängvärde är satt, annars poäng
+- Historik och uppgörelser visar rätt enhet baserat på poängvärde
+- Registreringshistorik visas under Registrera-knappen i sessionen
+- Tagit bort +/− knappar – bara direktinmatning av siffror
+- 2-spelarläge: bara ett fält, motspelaren speglas automatiskt
+- Inputfältet markeras automatiskt vid sessionstart
+
+## 2026-04-14
+- Spara flera grupper lokalt – alla grupper du är med i visas på startskärmen
+- Klicka direkt på en sparad grupp för att gå med igen utan att skriva kod
+- Radera grupp permanent (bara synligt för den som skapade gruppen, dubbel bekräftelse)
+- Fix: "Hem"-knappen lämnar inte gruppen längre – gruppen finns kvar i listan
+- Fix: Namnfält visas direkt när man klickar "Gå med" med förifylld kod
+
 ## 2026-03-26
 - Diagram: tooltip-färgruta och legend-ruta är nu solid ifylld i spelarens färg
 

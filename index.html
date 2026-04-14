@@ -37,6 +37,7 @@
           </div>
           <p class="logo-sub">Skuldboken</p>
         </div>
+        <div id="saved-groups-list" class="saved-groups-list" style="display:none"></div>
         <div class="card">
           <h2>Gå med i en grupp</h2>
           <div class="form-group">
@@ -109,6 +110,7 @@
         <h1 class="header-title" id="session-title">Session</h1>
         <div class="header-actions">
           <button id="btn-session-chart" class="btn-icon" title="Visa diagram">📈</button>
+          <button id="btn-session-settings" class="btn-icon" title="Sessionsinställningar">⚙</button>
           <button id="btn-delete-session" class="btn-icon btn-icon-danger" title="Radera session">🗑</button>
           <button id="btn-close-session" class="btn-text btn-danger">Avsluta session</button>
         </div>
@@ -121,6 +123,7 @@
           <span id="quick-sum" class="sum-value">0 kr</span>
         </div>
         <button id="btn-quick-submit" class="btn btn-primary btn-full">Registrera</button>
+        <div id="session-rounds-list" class="session-rounds-list"></div>
       </div>
     </div>
 
@@ -157,6 +160,7 @@
   <!-- Create Group Name Modal -->
   <div id="modal-create-name" class="modal-overlay hidden">
     <div class="modal">
+      <button class="modal-close-btn" data-close-modal="modal-create-name">✕</button>
       <h2>Välj ditt namn</h2>
       <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">Gruppen är skapad! Ange ditt namn för att gå med.</p>
       <div class="form-group">
@@ -172,10 +176,16 @@
   <!-- New Session Modal -->
   <div id="modal-new-session" class="modal-overlay hidden">
     <div class="modal">
+      <button class="modal-close-btn" id="btn-cancel-session-x">✕</button>
       <h2>Ny session</h2>
       <div class="form-group">
         <label for="input-session-name">Namn (valfritt)</label>
         <input type="text" id="input-session-name" placeholder="T.ex. Fredagspoker" maxlength="40" />
+      </div>
+      <div class="form-group">
+        <label for="input-point-value">Poängvärde i kr (valfritt)</label>
+        <input type="number" id="input-point-value" placeholder="T.ex. 10" min="0" inputmode="decimal" />
+        <span class="form-hint">Lämna tomt för att visa poäng</span>
       </div>
       <div class="form-group">
         <label>Spelare</label>
@@ -191,6 +201,7 @@
   <!-- Group Settings Modal -->
   <div id="modal-group" class="modal-overlay hidden">
     <div class="modal">
+      <button class="modal-close-btn" id="btn-close-group-x">✕</button>
       <h2>Grupptinställningar</h2>
       <div class="group-code-display">
         <span class="label">Gruppkod</span>
@@ -206,8 +217,28 @@
       </div>
       <div id="group-players-list" class="group-players-list"></div>
       <div class="modal-actions">
-        <button id="btn-close-group" class="btn btn-secondary btn-full">Stäng</button>
-        <button id="btn-leave-group" class="btn btn-danger">Lämna grupp</button>
+        <button id="btn-leave-group" class="btn btn-danger btn-full">Lämna grupp</button>
+      </div>
+      <button id="btn-delete-group" class="btn btn-danger btn-full" style="display:none;margin-top:8px">Radera grupp permanent</button>
+    </div>
+  </div>
+
+  <!-- Session Settings Modal -->
+  <div id="modal-session-settings" class="modal-overlay hidden">
+    <div class="modal">
+      <button class="modal-close-btn" id="btn-close-session-settings-x">✕</button>
+      <h2>Sessionsinställningar</h2>
+      <div class="form-group">
+        <label for="input-session-name-edit">Sessionens namn</label>
+        <input type="text" id="input-session-name-edit" placeholder="T.ex. Fredagspoker" maxlength="40" />
+      </div>
+      <div class="form-group">
+        <label for="input-session-point-value-modal">Poängvärde i kr</label>
+        <input type="number" id="input-session-point-value-modal" placeholder="T.ex. 10" min="0" inputmode="decimal" />
+        <span class="form-hint">Lämna tomt för att visa poäng</span>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-save-session-settings" class="btn btn-primary btn-full">Spara</button>
       </div>
     </div>
   </div>
@@ -215,23 +246,19 @@
   <!-- Session Detail Modal -->
   <div id="modal-session-detail" class="modal-overlay hidden">
     <div class="modal">
+      <button class="modal-close-btn" id="btn-close-detail-x">✕</button>
       <h2 id="detail-session-name">Session</h2>
       <div id="detail-entries-list" class="detail-entries-list"></div>
-      <div class="modal-actions">
-        <button id="btn-close-detail" class="btn btn-secondary btn-full">Stäng</button>
-      </div>
     </div>
   </div>
 
   <!-- Chart Modal -->
   <div id="modal-chart" class="modal-overlay hidden">
     <div class="modal modal-chart">
+      <button class="modal-close-btn" id="btn-close-chart-x">✕</button>
       <h2>Diagram</h2>
       <div class="chart-container">
         <canvas id="session-chart"></canvas>
-      </div>
-      <div class="modal-actions">
-        <button id="btn-close-chart" class="btn btn-secondary btn-full">Stäng</button>
       </div>
     </div>
   </div>

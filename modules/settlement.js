@@ -60,11 +60,28 @@ export function oreToSek(ore) {
 }
 
 /**
- * Format amount with sign
+ * Format amount with sign (kr)
  */
 export function formatAmount(ore) {
   if (ore === 0) return '0 kr';
   const sign = ore > 0 ? '+' : '-';
   const sek = (Math.abs(ore) / 100).toFixed(0);
   return sign + sek + ' kr';
+}
+
+/**
+ * Format points (stored as öre-scale integers, 1 point = 100 units)
+ * pointValue: kr per poäng (optional) – if set, shows kr instead
+ */
+export function formatPoints(ore, pointValue) {
+  const points = ore / 100;
+  if (pointValue) {
+    const kr = points * pointValue;
+    if (kr === 0) return '0 kr';
+    const sign = kr > 0 ? '+' : '-';
+    return sign + Math.abs(Math.round(kr)) + ' kr';
+  }
+  if (points === 0) return '0 p';
+  const sign = points > 0 ? '+' : '-';
+  return sign + Math.abs(points) + ' p';
 }

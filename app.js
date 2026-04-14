@@ -6,7 +6,7 @@ import {
   listenPlayers, listenSessions, listenBalances, listenEntries,
   createSession, getMeta, deletePlayer, reopenSession, deleteSession,
   confirmTransaction, unconfirmTransaction, listenConfirmations,
-  clearBook
+  clearBook, deleteGroup, updateSessionPointValue, updateSessionMeta
 } from './modules/firebase.js';
 import {
   showScreen, showToast,
@@ -15,6 +15,7 @@ import {
   renderQuickMode, renderHistory, renderSessionDetail,
   renderGroupPlayers, renderSessionPlayerSelect
 } from './modules/ui.js';
+import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession } from './modules/session.js';
 import { sekToOre, oreToSek } from './modules/settlement.js';
 
@@ -59,28 +60,103 @@ function init() {
   });
 }
 
-// ===== LOCALSTORAGE =====
+// ===== LOCALSTORAGE (multi-grupp) =====
+
+function getAllSavedGroups() {
+  try {
+    const raw = localStorage.getItem('blackbook_groups');
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
 
 function getSavedGroup() {
   try {
-    const raw = localStorage.getItem('blackbook_session');
-    return raw ? JSON.parse(raw) : null;
+    // Stöd för gamla formatet (migration)
+    const legacy = localStorage.getItem('blackbook_session');
+    if (legacy) {
+      const parsed = JSON.parse(legacy);
+      if (parsed?.groupCode) {
+        saveGroup(parsed.groupCode, parsed.playerId, parsed.playerName);
+        localStorage.removeItem('blackbook_session');
+        return parsed;
+      }
+    }
+    // Returnera senast använda grupp
+    const groups = getAllSavedGroups();
+    return groups.length > 0 ? groups[0] : null;
   } catch { return null; }
 }
 
-function saveGroup(groupCode, playerId, playerName) {
-  localStorage.setItem('blackbook_session', JSON.stringify({ groupCode, playerId, playerName }));
+function saveGroup(groupCode, playerId, playerName, createdAt) {
+  const existing = getAllSavedGroups().find(g => g.groupCode === groupCode);
+  const groups = getAllSavedGroups().filter(g => g.groupCode !== groupCode);
+  groups.unshift({ groupCode, playerId, playerName, createdAt: createdAt ?? existing?.createdAt ?? null });
+  localStorage.setItem('blackbook_groups', JSON.stringify(groups));
+}
+
+function removeSavedGroup(groupCode) {
+  const groups = getAllSavedGroups().filter(g => g.groupCode !== groupCode);
+  localStorage.setItem('blackbook_groups', JSON.stringify(groups));
 }
 
 function clearSavedGroup() {
-  localStorage.removeItem('blackbook_session');
+  if (state.groupCode) removeSavedGroup(state.groupCode);
 }
 
 function prefillCode() {
+  renderSavedGroups();
   const saved = getSavedGroup();
   if (saved?.groupCode) {
     document.getElementById('input-group-code').value = saved.groupCode;
+    handleCodeBlur();
   }
+}
+
+function renderSavedGroups() {
+  const groups = getAllSavedGroups();
+  const container = document.getElementById('saved-groups-list');
+  if (!container) return;
+  if (groups.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = '';
+  container.innerHTML = `<p class="saved-groups-label">Dina grupper</p>` +
+    groups.map(g => {
+      const dateStr = g.createdAt
+        ? new Date(g.createdAt).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })
+        : '';
+      return `
+        <button class="saved-group-btn" data-code="${g.groupCode}">
+          <span class="saved-group-info">
+            <span class="saved-group-code">${g.groupCode}</span>
+            ${dateStr ? `<span class="saved-group-date">${dateStr}</span>` : ''}
+          </span>
+          <span class="saved-group-name">${g.playerName}</span>
+          <span class="saved-group-arrow">›</span>
+        </button>
+      `;
+    }).join('');
+  container.querySelectorAll('.saved-group-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const code = btn.dataset.code;
+      const saved = getAllSavedGroups().find(g => g.groupCode === code);
+      if (!saved) return;
+      const exists = await groupExists(code);
+      if (!exists) {
+        showToast('Gruppen finns inte längre');
+        removeSavedGroup(code);
+        renderSavedGroups();
+        return;
+      }
+      state.groupCode = saved.groupCode;
+      state.playerId = saved.playerId;
+      state.playerName = saved.playerName;
+      saveGroup(saved.groupCode, saved.playerId, saved.playerName, saved.createdAt);
+      await connectToGroup();
+      showToast(`Välkommen tillbaka, ${saved.playerName}!`);
+    });
+  });
 }
 
 // ===== GROUP CODE =====
@@ -157,12 +233,21 @@ function onSessionsUpdate() {
     document.getElementById('session-title').textContent = session.name || 'Session';
     renderQuickMode(state.players, session.playerIds);
   }
+
+  // Uppdatera saldon med nytt pointValue
+  onBalancesUpdate();
+}
+
+function getActivePointValue() {
+  if (!state.activeSessionId) return null;
+  return state.sessions[state.activeSessionId]?.pointValue || null;
 }
 
 function onBalancesUpdate() {
-  renderBalances(state.balances, state.players, state.playerId);
-  renderSettlements(state.balances, state.players, state.confirmations);
-  renderConfirmedTransactions(state.balances, state.players, state.confirmations);
+  const pointValue = getActivePointValue();
+  renderBalances(state.balances, state.players, state.playerId, pointValue);
+  renderSettlements(state.balances, state.players, state.confirmations, pointValue);
+  renderConfirmedTransactions(state.balances, state.players, state.confirmations, pointValue);
 }
 
 function onConfirmationsUpdate() {
@@ -222,10 +307,102 @@ async function handleClearBook() {
 }
 
 function onEntriesUpdate() {
+  renderSessionRounds();
   // Refresh chart if it's open
-  if (!document.getElementById('modal-chart').classList.contains('hidden')) {
+  const chartModal = document.getElementById('modal-chart');
+  if (!chartModal.classList.contains('hidden') && !chartModal.classList.contains('closing')) {
     handleOpenChart();
   }
+}
+
+function renderSessionRounds() {
+  const container = document.getElementById('session-rounds-list');
+  if (!container || !state.activeSessionId) { if (container) container.innerHTML = ''; return; }
+
+  const session = state.sessions[state.activeSessionId];
+  const sessionEntries = Object.values(state.entries)
+    .filter(e => e.sessionId === state.activeSessionId && !e.deleted)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  if (sessionEntries.length === 0) { container.innerHTML = ''; return; }
+
+  // Gruppera entries per omgång (< 5s isär)
+  const rounds = [];
+  let prevTime = null;
+  for (const e of sessionEntries) {
+    if (prevTime === null || e.timestamp - prevTime > 5000) {
+      rounds.push([]);
+      prevTime = e.timestamp;
+    }
+    rounds[rounds.length - 1].push(e);
+  }
+
+  const pointValue = getActivePointValue();
+  const playerIds = session?.playerIds ? Object.keys(session.playerIds).filter(id => state.players[id]) : [];
+  const twoPlayer = playerIds.length === 2;
+
+  // Beräkna totaler per spelare
+  const totals = {};
+  playerIds.forEach(id => { totals[id] = 0; });
+  sessionEntries.forEach(e => {
+    if (totals[e.playerId] !== undefined) totals[e.playerId] += e.amount;
+  });
+
+  // Nyaste omgången överst (rounds är sorterade äldst→nyast, vi vänder)
+  const roundsHtml = rounds.slice().reverse().map((round, i) => {
+    const isLatest = i === 0;
+
+    let parts;
+    if (twoPlayer) {
+      // Visa bara vinnaren (positiv)
+      const winner = round.find(e => e.amount > 0);
+      if (winner) {
+        const player = state.players[winner.playerId];
+        const display = formatPoints(winner.amount, pointValue);
+        parts = `<span class="round-entry" style="color:${player.color}">${player.name} ${display}</span>`;
+      } else {
+        // Alla noll – visa ingenting meningsfullt
+        parts = '<span class="round-entry" style="color:var(--text-muted)">0</span>';
+      }
+    } else {
+      parts = round.map(e => {
+        const player = state.players[e.playerId];
+        if (!player) return '';
+        const display = formatPoints(e.amount, pointValue);
+        return `<span class="round-entry" style="color:${player.color}">${player.name} ${display}</span>`;
+      }).join('');
+    }
+
+    return `<div class="round-row ${isLatest ? 'round-latest' : 'round-old'}">${parts}</div>`;
+  }).join('');
+
+  // Totalsumma-rad
+  let totalHtml = '';
+  if (playerIds.length > 0) {
+    const totalParts = playerIds.map(id => {
+      const p = state.players[id];
+      const display = formatPoints(totals[id], pointValue);
+      const cls = totals[id] > 0 ? 'positive' : totals[id] < 0 ? 'negative' : '';
+      return `<div class="total-entry ${cls}">
+        <span class="total-dot" style="background:${p.color}"></span>
+        <span class="total-name">${p.name}</span>
+        <span class="total-value">${display}</span>
+      </div>`;
+    }).join('');
+    totalHtml = `<div class="rounds-total-row">${totalParts}</div>`;
+  }
+
+  container.innerHTML = roundsHtml;
+
+  // Uppdatera sticky total
+  let stickyEl = document.getElementById('session-sticky-total');
+  if (!stickyEl) {
+    stickyEl = document.createElement('div');
+    stickyEl.id = 'session-sticky-total';
+    stickyEl.className = 'session-sticky-total';
+    document.getElementById('screen-session').appendChild(stickyEl);
+  }
+  stickyEl.innerHTML = totalHtml || '';
 }
 
 // ===== QUICK MODE LOGIC =====
@@ -241,10 +418,79 @@ function getQuickAmounts() {
 
 function updateQuickSum() {
   const amounts = getQuickAmounts();
+
+  // Uppdatera spegelbelopp om det är 2 spelare
+  const inputs = document.querySelectorAll('#quick-players-list .amount-input');
+  if (inputs.length === 1) {
+    const valA = parseFloat(inputs[0].value) || 0;
+    const mirrorEl = document.querySelector('[id^="mirror-amount-"]');
+    if (mirrorEl) {
+      const pointValue = getActivePointValue();
+      mirrorEl.textContent = formatPoints(-valA * 100, pointValue);
+    }
+    return;
+  }
+
   const total = Object.values(amounts).reduce((s, v) => s + v, 0);
   const el = document.getElementById('quick-sum');
   el.textContent = total === 0 ? '0 kr' : `${total > 0 ? '+' : ''}${total.toFixed(0)} kr`;
   el.className = 'sum-value ' + (total === 0 ? 'zero' : 'nonzero');
+}
+
+// ===== MODAL HELPERS =====
+
+function openModal(id) {
+  const overlay = document.getElementById(id);
+  if (!overlay) return;
+  overlay.classList.remove('hidden', 'closing');
+  setupModalSwipe(overlay);
+}
+
+function closeModal(id) {
+  const overlay = document.getElementById(id);
+  if (!overlay || overlay.classList.contains('hidden')) return;
+  overlay.classList.add('closing');
+  overlay.addEventListener('animationend', () => {
+    overlay.classList.add('hidden');
+    overlay.classList.remove('closing');
+  }, { once: true });
+}
+
+function setupModalSwipe(overlay) {
+  const modal = overlay.querySelector('.modal');
+  if (!modal || modal._swipeSetup) return;
+  modal._swipeSetup = true;
+
+  let startY = 0;
+  let currentY = 0;
+  let dragging = false;
+
+  modal.addEventListener('touchstart', e => {
+    // Bara starta swipe från toppen av modalen (drag handle-zonen)
+    if (e.touches[0].clientY - modal.getBoundingClientRect().top > 60) return;
+    startY = e.touches[0].clientY;
+    dragging = true;
+    modal.style.transition = 'none';
+  }, { passive: true });
+
+  modal.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    currentY = e.touches[0].clientY;
+    const delta = Math.max(0, currentY - startY);
+    modal.style.transform = `translateY(${delta}px)`;
+  }, { passive: true });
+
+  modal.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging = false;
+    modal.style.transition = '';
+    modal.style.transform = '';
+    const delta = currentY - startY;
+    if (delta > 80) {
+      // Swipat tillräckligt – stäng
+      closeModal(overlay.id);
+    }
+  });
 }
 
 // ===== EVENTS =====
@@ -277,6 +523,7 @@ function bindEvents() {
   // FAB – new session
   document.getElementById('fab-new-session').addEventListener('click', openNewSessionModal);
   document.getElementById('btn-cancel-session').addEventListener('click', closeNewSessionModal);
+  document.getElementById('btn-cancel-session-x').addEventListener('click', closeNewSessionModal);
   document.getElementById('btn-start-session').addEventListener('click', handleStartSession);
 
   // Create group – name modal
@@ -287,18 +534,16 @@ function bindEvents() {
 
   // Go to lobby
   document.getElementById('btn-go-lobby').addEventListener('click', () => {
-    if (!confirm('Gå till startskärmen? Du kan gå med igen när som helst.')) return;
     state.unsubscribers.forEach(fn => fn());
     state.unsubscribers = [];
-    clearSavedGroup();
     document.getElementById('bottom-nav').classList.add('hidden');
     showScreen('lobby');
-    showToast('Du lämnade gruppen');
+    prefillCode();
   });
 
   // Group settings
   document.getElementById('btn-group-settings').addEventListener('click', openGroupModal);
-  document.getElementById('btn-close-group').addEventListener('click', closeGroupModal);
+  document.getElementById('btn-close-group-x').addEventListener('click', closeGroupModal);
   document.getElementById('btn-copy-code').addEventListener('click', () => {
     navigator.clipboard?.writeText(state.groupCode).then(() => showToast('Kod kopierad!'));
   });
@@ -307,6 +552,7 @@ function bindEvents() {
     if (e.key === 'Enter') handleAddPlayer();
   });
   document.getElementById('btn-leave-group').addEventListener('click', handleLeaveGroup);
+  document.getElementById('btn-delete-group').addEventListener('click', handleDeleteGroup);
 
   // Remove player (delegated)
   document.getElementById('group-players-list').addEventListener('click', e => {
@@ -315,27 +561,15 @@ function bindEvents() {
     handleRemovePlayer(btn.dataset.playerId);
   });
 
-  // Session back / close / delete / chart
+  // Session back / close / delete / chart / settings
   document.getElementById('btn-back-dashboard').addEventListener('click', () => showScreen('dashboard'));
   document.getElementById('btn-close-session').addEventListener('click', handleCloseSession);
   document.getElementById('btn-delete-session').addEventListener('click', handleDeleteActiveSession);
   document.getElementById('btn-session-chart').addEventListener('click', handleOpenChart);
-  document.getElementById('btn-close-chart').addEventListener('click', () => {
-    document.getElementById('modal-chart').classList.add('hidden');
-  });
-
-  // Quick mode – amount buttons (delegated)
-  document.getElementById('quick-players-list').addEventListener('click', e => {
-    const btn = e.target.closest('.amount-btn');
-    if (!btn) return;
-    const id = btn.dataset.playerId;
-    const input = document.querySelector(`#quick-players-list .amount-input[data-player-id="${id}"]`);
-    if (!input) return;
-    const step = 25;
-    const val = parseFloat(input.value) || 0;
-    input.value = btn.dataset.action === 'inc' ? val + step : val - step;
-    updateQuickSum();
-  });
+  document.getElementById('btn-close-chart-x').addEventListener('click', () => closeModal('modal-chart'));
+  document.getElementById('btn-session-settings').addEventListener('click', openSessionSettingsModal);
+  document.getElementById('btn-close-session-settings-x').addEventListener('click', () => closeModal('modal-session-settings'));
+  document.getElementById('btn-save-session-settings').addEventListener('click', handleSaveSessionSettings);
 
   document.getElementById('quick-players-list').addEventListener('input', e => {
     if (e.target.classList.contains('amount-input')) updateQuickSum();
@@ -353,7 +587,7 @@ function bindEvents() {
       const sessionId = detailBtn.dataset.sessionId;
       const session = { ...state.sessions[sessionId], id: sessionId };
       renderSessionDetail(session, state.entries, state.players);
-      document.getElementById('modal-session-detail').classList.remove('hidden');
+      openModal('modal-session-detail');
     } else if (reopenBtn) {
       handleReopenSession(reopenBtn.dataset.sessionId);
     } else if (deleteBtn) {
@@ -361,9 +595,7 @@ function bindEvents() {
     }
   });
 
-  document.getElementById('btn-close-detail').addEventListener('click', () => {
-    document.getElementById('modal-session-detail').classList.add('hidden');
-  });
+  document.getElementById('btn-close-detail-x').addEventListener('click', () => closeModal('modal-session-detail'));
 
   // Active session preview click → go to session
   document.getElementById('active-session-preview').addEventListener('click', () => {
@@ -456,9 +688,19 @@ async function handleJoin() {
 
   const selectEl = document.getElementById('select-player-name');
   const selectGroup = document.getElementById('player-select-group');
-  const usingSelect = selectGroup.style.display !== 'none' && selectEl.value !== '__new__' && selectEl.value !== '';
+  const nameGroup = document.getElementById('player-name-group');
 
-  if (selectGroup.style.display !== 'none' && selectEl.value === '') {
+  // Om varken namnfält eller dropdown visas ännu, kör blur-logiken först
+  const nameVisible = nameGroup.style.display !== 'none';
+  const selectVisible = selectGroup.style.display !== 'none';
+  if (!nameVisible && !selectVisible) {
+    await handleCodeBlur();
+    return;
+  }
+
+  const usingSelect = selectVisible && selectEl.value !== '__new__' && selectEl.value !== '';
+
+  if (selectVisible && selectEl.value === '') {
     showToast('Välj ditt namn i listan');
     return;
   }
@@ -484,19 +726,19 @@ async function handleJoin() {
   state.groupCode = code;
   state.playerId = playerId;
   state.playerName = playerName;
-  saveGroup(code, playerId, playerName);
+  const joinMeta = await getMeta(code);
+  saveGroup(code, playerId, playerName, joinMeta?.createdAt ?? null);
   await connectToGroup();
   showToast(`Välkommen, ${playerName}!`);
 }
 
 async function handleCreate() {
   const code = generateCode();
-  await createGroup(code);
-  state.groupCode = code;
+  // createdBy sätts efter att spelaren namngivits, sparas temporärt i state
   state.pendingGroupCode = code;
   document.getElementById('input-group-code').value = code;
   document.getElementById('input-create-name').value = '';
-  document.getElementById('modal-create-name').classList.remove('hidden');
+  openModal('modal-create-name');
   setTimeout(() => document.getElementById('input-create-name').focus(), 100);
 }
 
@@ -504,13 +746,17 @@ async function handleConfirmCreateName() {
   const name = document.getElementById('input-create-name').value.trim();
   if (!name) { showToast('Ange ditt namn'); return; }
 
-  const code = state.groupCode;
+  const code = state.pendingGroupCode;
+  // Lägg till spelaren först för att få ett riktigt ID, sedan skapa gruppen med createdBy
   const playerId = await addPlayer(code, name, randomColor());
+  await createGroup(code, playerId);
 
+  state.groupCode = code;
   state.playerId = playerId;
   state.playerName = name;
-  saveGroup(code, playerId, name);
-  document.getElementById('modal-create-name').classList.add('hidden');
+  const createMeta = await getMeta(code);
+  saveGroup(code, playerId, name, createMeta?.createdAt ?? Date.now());
+  closeModal('modal-create-name');
   await connectToGroup();
   showToast(`Grupp skapad! Kod: ${code}`);
 }
@@ -521,7 +767,7 @@ function handleLeaveGroup() {
   state.unsubscribers = [];
   clearSavedGroup();
   document.getElementById('bottom-nav').classList.add('hidden');
-  document.getElementById('modal-group').classList.add('hidden');
+  closeModal('modal-group');
   showScreen('lobby');
   showToast('Du har lämnat gruppen');
 }
@@ -561,16 +807,18 @@ function openNewSessionModal() {
     });
   });
 
-  document.getElementById('modal-new-session').classList.remove('hidden');
+  openModal('modal-new-session');
 }
 
 function closeNewSessionModal() {
-  document.getElementById('modal-new-session').classList.add('hidden');
+  closeModal('modal-new-session');
 }
 
 async function handleStartSession() {
   const name = document.getElementById('input-session-name').value.trim();
-  // Fallback: if none selected, use all players
+  const pvRaw = parseFloat(document.getElementById('input-point-value').value);
+  const pointValue = isNaN(pvRaw) || pvRaw <= 0 ? null : pvRaw;
+
   if (state.newSessionSelectedPlayers.length === 0) {
     state.newSessionSelectedPlayers = Object.keys(state.players);
   }
@@ -582,6 +830,7 @@ async function handleStartSession() {
   const sessionId = await createSession(state.groupCode, {
     type: 'quick',
     name,
+    pointValue,
     playerIds: state.newSessionSelectedPlayers
   });
 
@@ -676,7 +925,7 @@ function handleOpenChart() {
 
   const labels = ['Start', ...rounds.map((_, i) => `R${i + 1}`)];
 
-  document.getElementById('modal-chart').classList.remove('hidden');
+  openModal('modal-chart');
 
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
   const ctx = document.getElementById('session-chart').getContext('2d');
@@ -759,8 +1008,18 @@ async function handleDeleteSession(sessionId) {
 async function handleQuickSubmit() {
   if (!state.activeSessionId) { showToast('Ingen aktiv session'); return; }
   const amounts = getQuickAmounts();
-  const total = Object.values(amounts).reduce((s, v) => s + v, 0);
+  const playerIds = Object.keys(amounts);
 
+  // 2-spelarläge: fyll i motspelaren automatiskt
+  if (playerIds.length === 1) {
+    const idA = playerIds[0];
+    const session = state.sessions[state.activeSessionId];
+    const allIds = session?.playerIds ? Object.keys(session.playerIds) : [];
+    const idB = allIds.find(id => id !== idA && state.players[id]);
+    if (idB) amounts[idB] = -amounts[idA];
+  }
+
+  const total = Object.values(amounts).reduce((s, v) => s + v, 0);
   if (Math.abs(total) > 1) {
     showToast(`Summan måste vara 0 (nu: ${total > 0 ? '+' : ''}${total.toFixed(0)} kr)`);
     return;
@@ -778,8 +1037,9 @@ async function handleQuickSubmit() {
 }
 
 function openGroupModal() {
-  document.getElementById('modal-group').classList.remove('hidden');
+  openModal('modal-group');
   renderGroupPlayers(state.players, state.playerId);
+  document.getElementById('btn-delete-group').style.display = '';
 }
 
 async function handleRemovePlayer(playerId) {
@@ -790,8 +1050,65 @@ async function handleRemovePlayer(playerId) {
   showToast(`${player.name} borttagen`);
 }
 
+async function handleDeleteGroup() {
+  const code = state.groupCode;
+  const playerCount = Object.keys(state.players).length;
+  const confirmed = confirm(
+    `⚠️ RADERA GRUPP: ${code}\n\n` +
+    `Detta raderar ALLT permanent:\n` +
+    `• ${playerCount} spelare\n` +
+    `• Alla sessioner och resultat\n` +
+    `• Alla saldon och skulder\n\n` +
+    `Detta går INTE att ångra!\n\n` +
+    `Är du helt säker?`
+  );
+  if (!confirmed) return;
+
+  // Dubbel bekräftelse
+  const confirmed2 = confirm(`Sista chansen – radera grupp "${code}" för alltid?`);
+  if (!confirmed2) return;
+
+  state.unsubscribers.forEach(fn => fn());
+  state.unsubscribers = [];
+  await deleteGroup(code);
+  removeSavedGroup(code);
+  state.groupCode = null;
+  state.playerId = null;
+  state.playerName = null;
+  closeModal('modal-group');
+  document.getElementById('bottom-nav').classList.add('hidden');
+  showScreen('lobby');
+  renderSavedGroups();
+  showToast('Gruppen har raderats');
+}
+
 function closeGroupModal() {
-  document.getElementById('modal-group').classList.add('hidden');
+  closeModal('modal-group');
+}
+
+// ===== SESSION SETTINGS MODAL =====
+
+function openSessionSettingsModal() {
+  if (!state.activeSessionId) return;
+  const session = state.sessions[state.activeSessionId];
+  document.getElementById('input-session-name-edit').value = session?.name || '';
+  document.getElementById('input-session-point-value-modal').value = session?.pointValue || '';
+  openModal('modal-session-settings');
+}
+
+async function handleSaveSessionSettings() {
+  if (!state.activeSessionId) return;
+  const nameVal = document.getElementById('input-session-name-edit').value.trim();
+  const pvRaw = parseFloat(document.getElementById('input-session-point-value-modal').value);
+  const pointValue = isNaN(pvRaw) || pvRaw <= 0 ? null : pvRaw;
+
+  await updateSessionMeta(state.groupCode, state.activeSessionId, {
+    name: nameVal || null,
+    pointValue: pointValue ?? null
+  });
+
+  closeModal('modal-session-settings');
+  showToast('Sparat!');
 }
 
 // ===== HELPERS =====

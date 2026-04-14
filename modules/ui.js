@@ -2,7 +2,7 @@
  * ui.js
  * DOM rendering helpers
  */
-import { minimizePayments, oreToSek, formatAmount } from './settlement.js';
+import { minimizePayments, oreToSek, formatAmount, formatPoints } from './settlement.js';
 
 // ===== TOAST =====
 
@@ -37,7 +37,7 @@ export function showScreen(screenId) {
 
 // ===== BALANCES =====
 
-export function renderBalances(balances, players, currentPlayerId) {
+export function renderBalances(balances, players, currentPlayerId, pointValue) {
   const container = document.getElementById('balances-list');
   if (!players || Object.keys(players).length === 0) {
     container.innerHTML = '<p class="muted">Inga spelare ännu</p>';
@@ -54,13 +54,14 @@ export function renderBalances(balances, players, currentPlayerId) {
     const amtCls = net > 0 ? 'positive' : net < 0 ? 'negative' : 'zero';
     const isYou = id === currentPlayerId;
     const initial = player.name.charAt(0).toUpperCase();
+    const display = formatPoints(net, pointValue);
     return `
       <div class="balance-item ${cls}">
         <div class="player-avatar" style="background:${player.color}20;color:${player.color}">${initial}</div>
         <div class="balance-info">
           <span class="balance-name">${escHtml(player.name)}${isYou ? '<span class="balance-you">(Du)</span>' : ''}</span>
         </div>
-        <span class="balance-amount ${amtCls}">${formatAmount(net)}</span>
+        <span class="balance-amount ${amtCls}">${display}</span>
       </div>
     `;
   }).join('');
@@ -68,7 +69,7 @@ export function renderBalances(balances, players, currentPlayerId) {
 
 // ===== SETTLEMENTS =====
 
-export function renderSettlements(balances, players, confirmations = {}) {
+export function renderSettlements(balances, players, confirmations = {}, pointValue) {
   const container = document.getElementById('settlements-list');
   const section = document.getElementById('section-settlements');
   const badge = document.getElementById('settlements-badge');
@@ -103,19 +104,22 @@ export function renderSettlements(balances, players, confirmations = {}) {
   container.innerHTML = pending.map(t => {
     const fromName = players[t.from]?.name || t.from;
     const toName = players[t.to]?.name || t.to;
+    const amtDisplay = pointValue
+      ? Math.abs(Math.round((t.amount / 100) * pointValue)) + ' kr'
+      : Math.abs(t.amount / 100) + ' p';
     return `
       <div class="settlement-item">
         <span class="settlement-from">${escHtml(fromName)}</span>
         <span class="settlement-arrow">→</span>
         <span class="settlement-to">${escHtml(toName)}</span>
-        <span class="settlement-amount">${oreToSek(t.amount)}</span>
+        <span class="settlement-amount">${amtDisplay}</span>
         <button class="btn-confirm-tx" data-from="${t.from}" data-to="${t.to}" data-amount="${t.amount}" title="Bekräfta betalning">✓</button>
       </div>
     `;
   }).join('');
 }
 
-export function renderConfirmedTransactions(balances, players, confirmations = {}) {
+export function renderConfirmedTransactions(balances, players, confirmations = {}, pointValue) {
   const section = document.getElementById('section-confirmed');
   const container = document.getElementById('confirmed-list');
 
@@ -130,12 +134,15 @@ export function renderConfirmedTransactions(balances, players, confirmations = {
     const fromName = players[t.from]?.name || t.from;
     const toName = players[t.to]?.name || t.to;
     const date = t.confirmedAt ? new Date(t.confirmedAt).toLocaleDateString('sv-SE') : '';
+    const amtDisplay = pointValue
+      ? Math.abs(Math.round((t.amount / 100) * pointValue)) + ' kr'
+      : Math.abs(t.amount / 100) + ' p';
     return `
       <div class="settlement-item settlement-confirmed">
         <span class="settlement-from">${escHtml(fromName)}</span>
         <span class="settlement-arrow">→</span>
         <span class="settlement-to">${escHtml(toName)}</span>
-        <span class="settlement-amount">${oreToSek(t.amount)}</span>
+        <span class="settlement-amount">${amtDisplay}</span>
         <span class="confirmed-date">${date}</span>
         <button class="btn-unconfirm-tx" data-from="${t.from}" data-to="${t.to}" data-amount="${t.amount}" title="Ångra">✕</button>
       </div>
@@ -179,23 +186,42 @@ export function renderQuickMode(players, sessionPlayerIds) {
   const container = document.getElementById('quick-players-list');
   const ids = sessionPlayerIds ? Object.keys(sessionPlayerIds) : [];
   const filtered = ids.filter(id => players[id]);
-  // Fallback: show all players if session has none
   const playersToShow = filtered.length > 0 ? filtered : Object.keys(players);
+  const twoPlayer = playersToShow.length === 2;
 
-  container.innerHTML = playersToShow.map(id => {
-    const p = players[id];
-    return `
-      <div class="quick-player-row" data-player-id="${id}">
-        <div class="player-avatar" style="background:${p.color}20;color:${p.color}">${p.name.charAt(0)}</div>
-        <span class="quick-player-name">${escHtml(p.name)}</span>
-        <div class="amount-control">
-          <button class="amount-btn" data-action="dec" data-player-id="${id}">−</button>
-          <input class="amount-input" type="number" value="0" data-player-id="${id}" inputmode="numeric" />
-          <button class="amount-btn" data-action="inc" data-player-id="${id}">+</button>
-        </div>
+  // Dölj/visa summa-raden beroende på antal spelare
+  const sumRow = document.querySelector('.sum-row');
+  if (sumRow) sumRow.style.display = twoPlayer ? 'none' : '';
+
+  if (twoPlayer) {
+    const [idA, idB] = playersToShow;
+    const pA = players[idA], pB = players[idB];
+    container.innerHTML = `
+      <div class="quick-player-row" data-player-id="${idA}">
+        <div class="player-avatar" style="background:${pA.color}20;color:${pA.color}">${pA.name.charAt(0)}</div>
+        <span class="quick-player-name">${escHtml(pA.name)}</span>
+        <input class="amount-input" type="number" value="0" data-player-id="${idA}" inputmode="numeric" />
+      </div>
+      <div class="quick-player-row two-player-mirror" data-player-id="${idB}">
+        <div class="player-avatar" style="background:${pB.color}20;color:${pB.color}">${pB.name.charAt(0)}</div>
+        <span class="quick-player-name">${escHtml(pB.name)}</span>
+        <span class="mirror-amount" id="mirror-amount-${idB}" style="color:${pB.color}">0 p</span>
       </div>
     `;
-  }).join('');
+    setTimeout(() => container.querySelector('.amount-input')?.select(), 50);
+  } else {
+    container.innerHTML = playersToShow.map((id, i) => {
+      const p = players[id];
+      return `
+        <div class="quick-player-row" data-player-id="${id}">
+          <div class="player-avatar" style="background:${p.color}20;color:${p.color}">${p.name.charAt(0)}</div>
+          <span class="quick-player-name">${escHtml(p.name)}</span>
+          <input class="amount-input" type="number" value="0" data-player-id="${id}" inputmode="numeric" />
+        </div>
+      `;
+    }).join('');
+    setTimeout(() => container.querySelector('.amount-input')?.select(), 50);
+  }
 }
 
 // ===== HISTORY =====
@@ -252,6 +278,7 @@ export function renderSessionDetail(session, entries, players) {
     return;
   }
 
+  const pointValue = session.pointValue || null;
   listEl.innerHTML = sessionEntries.map(([id, e]) => {
     const playerName = players[e.playerId]?.name || e.playerId;
     const amtCls = e.amount > 0 ? 'positive' : e.amount < 0 ? 'negative' : '';
@@ -261,7 +288,7 @@ export function renderSessionDetail(session, entries, players) {
           <span class="detail-entry-player">${escHtml(playerName)}</span>
           <span class="detail-entry-type">${e.note ? escHtml(e.note) : ''}</span>
         </div>
-        <span class="detail-entry-amount ${amtCls}">${formatAmount(e.amount)}</span>
+        <span class="detail-entry-amount ${amtCls}">${formatPoints(e.amount, pointValue)}</span>
       </div>
     `;
   }).join('');
