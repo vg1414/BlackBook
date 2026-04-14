@@ -88,14 +88,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: var(--header-height);
+  min-height: var(--header-height);
   padding: 0 16px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  padding-bottom: 8px;
   background: rgba(28, 28, 28, 0.92);
   backdrop-filter: blur(12px) saturate(160%);
   -webkit-backdrop-filter: blur(12px) saturate(160%);
   border-bottom: 1px solid rgba(212, 175, 55, 0.1);
   flex-shrink: 0;
-  padding-top: env(safe-area-inset-top, 0);
 }
 
 .app-header-centered {
@@ -1751,6 +1752,33 @@ input[type="number"]::-webkit-outer-spin-button {
   color: #1a1a1a;
 }
 
+/* Ångra-knapp i marginalen */
+.btn-undo-round {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.55;
+  transition: opacity 0.15s, transform 0.15s;
+  color: #c0392b;
+  font-size: 18px;
+  line-height: 1;
+  touch-action: manipulation;
+}
+.btn-undo-round:active {
+  opacity: 1;
+  transform: translateY(-50%) scale(0.88);
+}
+
 .notepad-total-circle {
   font-family: 'Caveat', cursive;
   font-size: 36px;
@@ -1895,24 +1923,29 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .saved-group-code {
   font-family: 'Courier New', monospace;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: bold;
   color: var(--gold);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   flex: 0 0 auto;
-  margin-right: 12px;
+  min-width: 60px;
 }
 
-.saved-group-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.saved-group-label {
   flex: 1;
-  margin-right: 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 8px;
 }
 
-.saved-group-date {
+.saved-group-label--muted {
   font-size: 11px;
+  font-weight: 400;
   color: var(--text-muted);
 }
 
@@ -1920,6 +1953,8 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 13px;
   color: var(--text-muted);
   flex: 0 0 auto;
+  min-width: 40px;
+  text-align: right;
   margin-right: 8px;
 }
 
@@ -2064,6 +2099,7 @@ input[type="number"]::-webkit-outer-spin-button {
   padding-right: 32px;
 }
 
+
 .detail-session-title {
   font-family: 'Playfair Display', serif;
   font-style: italic;
@@ -2108,6 +2144,11 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.sd-meta-row .btn-detail-unit {
+  margin-left: auto;
 }
 
 .sd-meta-chip {

@@ -191,8 +191,12 @@
   <div id="modal-create-name" class="modal-overlay hidden">
     <div class="modal">
       <button class="modal-close-btn" data-close-modal="modal-create-name">✕</button>
-      <h2>Välj ditt namn</h2>
-      <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">Gruppen är skapad! Ange ditt namn för att gå med.</p>
+      <h2>Skapa grupp</h2>
+      <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px">Ge gruppen ett namn och ange ditt eget namn.</p>
+      <div class="form-group">
+        <label for="input-group-name">Gruppnamn</label>
+        <input type="text" id="input-group-name" placeholder="T.ex. Fredagspoker" maxlength="30" autocomplete="off" />
+      </div>
       <div class="form-group">
         <label for="input-create-name">Ditt namn</label>
         <input type="text" id="input-create-name" placeholder="T.ex. David" maxlength="20" autocomplete="off" />
@@ -286,7 +290,6 @@
       <button class="modal-close-btn" id="btn-close-detail-x">✕</button>
       <div class="detail-modal-header">
         <h2 id="detail-session-name" class="detail-session-title">Session</h2>
-        <button id="btn-detail-unit-toggle" class="btn-detail-unit hidden">p</button>
       </div>
       <div id="detail-entries-list"></div>
     </div>

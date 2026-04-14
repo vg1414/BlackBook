@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 20)
+- Feature: gruppnamn – sätts obligatoriskt vid skapandet, visas i mitten i "Dina grupper"-listan (kod till vänster, ditt namn till höger)
+- Fix: uppgörelse visar nu alltid kr i alla update-vägar när pointValue är satt
+
 ## 2026-04-14 (uppdatering 19)
 - Fix: förslag till uppgörelse visar nu alltid kr (inte p) när poängvärde är satt – `onPlayersUpdate` och `onConfirmationsUpdate` skickade inte med `pointValue`
 

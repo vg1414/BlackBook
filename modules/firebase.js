@@ -29,10 +29,10 @@ const db = getDatabase(app);
 
 // ===== GROUP =====
 
-export async function createGroup(groupCode, createdBy, currency = 'SEK') {
+export async function createGroup(groupCode, createdBy, currency = 'SEK', groupName) {
   const groupRef = ref(db, `groups/${groupCode}/meta`);
   await set(groupRef, {
-    name: groupCode,
+    name: groupName || groupCode,
     createdAt: Date.now(),
     currency,
     createdBy

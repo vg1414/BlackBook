@@ -96,10 +96,16 @@ function getSavedGroup() {
   } catch { return null; }
 }
 
-function saveGroup(groupCode, playerId, playerName, createdAt) {
+function saveGroup(groupCode, playerId, playerName, createdAt, groupName) {
   const existing = getAllSavedGroups().find(g => g.groupCode === groupCode);
   const groups = getAllSavedGroups().filter(g => g.groupCode !== groupCode);
-  groups.unshift({ groupCode, playerId, playerName, createdAt: createdAt ?? existing?.createdAt ?? null });
+  groups.unshift({
+    groupCode,
+    playerId,
+    playerName,
+    createdAt: createdAt ?? existing?.createdAt ?? null,
+    groupName: groupName ?? existing?.groupName ?? null
+  });
   localStorage.setItem('blackbook_groups', JSON.stringify(groups));
 }
 
@@ -137,11 +143,9 @@ function renderSavedGroups() {
         : '';
       return `
         <button class="saved-group-btn" data-code="${g.groupCode}">
-          <span class="saved-group-info">
-            <span class="saved-group-code">${g.groupCode}</span>
-            ${dateStr ? `<span class="saved-group-date">${dateStr}</span>` : ''}
-          </span>
-          <span class="saved-group-name">${g.playerName}</span>
+          <span class="saved-group-code">${g.groupCode}</span>
+          ${g.groupName ? `<span class="saved-group-label">${escHtml(g.groupName)}</span>` : `<span class="saved-group-label saved-group-label--muted">${dateStr}</span>`}
+          <span class="saved-group-name">${escHtml(g.playerName)}</span>
           <span class="saved-group-arrow">›</span>
         </button>
       `;
@@ -808,28 +812,29 @@ async function handleJoin() {
 
 async function handleCreate() {
   const code = generateCode();
-  // createdBy sätts efter att spelaren namngivits, sparas temporärt i state
   state.pendingGroupCode = code;
   document.getElementById('input-group-code').value = code;
+  document.getElementById('input-group-name').value = '';
   document.getElementById('input-create-name').value = '';
   openModal('modal-create-name');
-  setTimeout(() => document.getElementById('input-create-name').focus(), 100);
+  setTimeout(() => document.getElementById('input-group-name').focus(), 100);
 }
 
 async function handleConfirmCreateName() {
+  const groupName = document.getElementById('input-group-name').value.trim();
+  if (!groupName) { showToast('Ange ett gruppnamn'); document.getElementById('input-group-name').focus(); return; }
   const name = document.getElementById('input-create-name').value.trim();
-  if (!name) { showToast('Ange ditt namn'); return; }
+  if (!name) { showToast('Ange ditt namn'); document.getElementById('input-create-name').focus(); return; }
 
   const code = state.pendingGroupCode;
-  // Lägg till spelaren först för att få ett riktigt ID, sedan skapa gruppen med createdBy
   const playerId = await addPlayer(code, name, randomColor());
-  await createGroup(code, playerId);
+  await createGroup(code, playerId, 'SEK', groupName);
 
   state.groupCode = code;
   state.playerId = playerId;
   state.playerName = name;
   const createMeta = await getMeta(code);
-  saveGroup(code, playerId, name, createMeta?.createdAt ?? Date.now());
+  saveGroup(code, playerId, name, createMeta?.createdAt ?? Date.now(), groupName);
   closeModal('modal-create-name');
   await connectToGroup();
   showToast(`Grupp skapad! Kod: ${code}`);
