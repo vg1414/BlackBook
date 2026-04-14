@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 21)
+- Feature: modaler är nu swipebara – dra nedåt för att stänga, modalen följer fingret och glider ut ur botten
+
 ## 2026-04-14 (uppdatering 20)
 - Feature: gruppnamn – sätts obligatoriskt vid skapandet, visas i mitten i "Dina grupper"-listan (kod till vänster, ditt namn till höger)
 - Fix: uppgörelse visar nu alltid kr i alla update-vägar när pointValue är satt

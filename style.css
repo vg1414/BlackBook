@@ -1318,7 +1318,8 @@ input[type="number"]::-webkit-outer-spin-button {
   flex-direction: column;
   gap: 16px;
   animation: sheetSlideUp 0.38s cubic-bezier(.32,.72,0,1) both;
-  touch-action: none;
+  touch-action: pan-y;
+  will-change: transform;
   border-top: 1px solid rgba(255,255,255,0.06);
   box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
 }

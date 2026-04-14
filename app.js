@@ -507,33 +507,85 @@ function setupModalSwipe(overlay) {
   modal._swipeSetup = true;
 
   let startY = 0;
-  let currentY = 0;
+  let lastY = 0;
+  let startTime = 0;
   let dragging = false;
+  let scrollLocked = false; // true = vi scrollar inuti modalen, ej swipe
 
   modal.addEventListener('touchstart', e => {
-    // Bara starta swipe från toppen av modalen (drag handle-zonen)
-    if (e.touches[0].clientY - modal.getBoundingClientRect().top > 60) return;
-    startY = e.touches[0].clientY;
-    dragging = true;
-    modal.style.transition = 'none';
+    const touch = e.touches[0];
+    startY = touch.clientY;
+    lastY = touch.clientY;
+    startTime = Date.now();
+    dragging = false;
+    scrollLocked = false;
+    modal._touchStartScrollTop = modal.scrollTop;
   }, { passive: true });
 
   modal.addEventListener('touchmove', e => {
+    const touch = e.touches[0];
+    const deltaY = touch.clientY - startY;
+    const absDelta = Math.abs(deltaY);
+
+    // Bestäm om vi ska scrolla eller swipea (bara en gång per gest)
+    if (!dragging && !scrollLocked) {
+      if (absDelta < 8) return; // för liten rörelse – vänta
+      const atTop = modal._touchStartScrollTop <= 0;
+      const movingDown = deltaY > 0;
+      if (atTop && movingDown) {
+        // Modalen är längst upp och fingret drar nedåt → swipe för att stänga
+        dragging = true;
+        modal.style.transition = 'none';
+      } else {
+        // Annars → scrolla inuti modalen normalt
+        scrollLocked = true;
+        return;
+      }
+    }
+
     if (!dragging) return;
-    currentY = e.touches[0].clientY;
-    const delta = Math.max(0, currentY - startY);
-    modal.style.transform = `translateY(${delta}px)`;
+    lastY = touch.clientY;
+    const drag = Math.max(0, touch.clientY - startY);
+    // Modalen följer fingret exakt nedåt
+    modal.style.transform = `translateY(${drag}px)`;
+    // Bakgrunden tonas ut lite i takt med draget
+    overlay.style.background = `rgba(0,0,0,${Math.max(0.1, 0.75 - drag / 400)})`;
   }, { passive: true });
 
   modal.addEventListener('touchend', () => {
     if (!dragging) return;
     dragging = false;
-    modal.style.transition = '';
-    modal.style.transform = '';
-    const delta = currentY - startY;
-    if (delta > 80) {
-      // Swipat tillräckligt – stäng
-      closeModal(overlay.id);
+
+    const totalDelta = lastY - startY;
+    const elapsed = Date.now() - startTime;
+    const velocity = totalDelta / elapsed; // px/ms
+
+    // Stäng om: tillräckligt drag (>100px) ELLER snabb swipe (>0.4 px/ms)
+    if (totalDelta > 100 || velocity > 0.4) {
+      // Fortsätt glida ner ut ur skärmen från nuvarande position
+      const screenH = window.innerHeight;
+      modal.style.transition = `transform 0.26s cubic-bezier(.32,.72,0,1)`;
+      modal.style.transform = `translateY(${screenH}px)`;
+      overlay.style.transition = 'background 0.26s ease, opacity 0.26s ease';
+      overlay.style.background = 'rgba(0,0,0,0)';
+      setTimeout(() => {
+        modal.style.transition = '';
+        modal.style.transform = '';
+        overlay.style.transition = '';
+        overlay.style.background = '';
+        overlay.classList.add('hidden');
+      }, 270);
+    } else {
+      // Fjäder tillbaka – sätt transition precis innan vi nollställer transform
+      modal.style.transition = 'transform 0.32s cubic-bezier(.32,.72,0,1)';
+      overlay.style.transition = 'background 0.32s ease';
+      modal.style.transform = '';
+      overlay.style.background = '';
+      // Rensa transition när animationen är klar
+      setTimeout(() => {
+        modal.style.transition = '';
+        overlay.style.transition = '';
+      }, 340);
     }
   });
 }
