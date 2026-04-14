@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#d4af37" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Black Book" />
@@ -98,6 +99,13 @@
             <p class="muted">Ingen aktiv session</p>
           </div>
         </section>
+
+        <section class="section" id="section-closed-sessions">
+          <h2 class="section-title">Avslutade sessioner</h2>
+          <div id="closed-sessions-list" class="closed-sessions-list">
+            <p class="muted">Inga avslutade sessioner</p>
+          </div>
+        </section>
       </div>
 
       <button id="fab-new-session" class="fab">+</button>
@@ -109,12 +117,8 @@
         <button id="btn-back-dashboard" class="btn-icon">←</button>
         <h1 class="header-title" id="session-title">Session</h1>
         <div class="header-actions">
-          <button id="btn-toggle-unit" class="btn-unit-toggle-inline" aria-label="Växla poäng/kronor">
-            <span class="unit-coin-label" id="unit-coin-label">p</span>
-          </button>
           <button id="btn-session-chart" class="btn-icon" title="Visa diagram">📈</button>
           <button id="btn-session-settings" class="btn-icon" title="Sessionsinställningar">⚙</button>
-          <button id="btn-delete-session" class="btn-icon btn-icon-danger" title="Radera session">🗑</button>
           <button id="btn-close-session" class="btn-text btn-danger">Avsluta session</button>
         </div>
       </header>
@@ -126,7 +130,12 @@
             <span class="sum-label">Summa:</span>
             <span id="quick-sum" class="sum-value">0 kr</span>
           </div>
-          <button id="btn-quick-submit" class="btn btn-primary btn-full">Registrera</button>
+          <div class="register-row">
+            <button id="btn-toggle-unit" class="btn-unit-toggle-inline" aria-label="Växla poäng/kronor">
+              <span class="unit-coin-label" id="unit-coin-label">p</span>
+            </button>
+            <button id="btn-quick-submit" class="btn btn-primary btn-register">Registrera</button>
+          </div>
         </div>
         <div class="session-scroll-area">
           <div id="session-rounds-list" class="session-rounds-list"></div>
@@ -144,6 +153,16 @@
       </div>
     </div>
 
+    <!-- STATISTICS -->
+    <div id="screen-stats" class="screen">
+      <header class="app-header app-header-centered">
+        <h1 class="header-title">Statistik</h1>
+      </header>
+      <div class="screen-content">
+        <div id="stats-content" class="stats-content"></div>
+      </div>
+    </div>
+
   </div>
 
   <!-- BOTTOM NAV -->
@@ -155,6 +174,10 @@
     <button class="nav-btn" data-screen="session">
       <span class="nav-icon">♠</span>
       <span class="nav-label">Session</span>
+    </button>
+    <button class="nav-btn" data-screen="stats">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Statistik</span>
     </button>
     <button class="nav-btn" data-screen="history">
       <span class="nav-icon">📋</span>
@@ -209,11 +232,12 @@
   <div id="modal-group" class="modal-overlay hidden">
     <div class="modal">
       <button class="modal-close-btn" id="btn-close-group-x">✕</button>
-      <h2>Grupptinställningar</h2>
+      <h2>Gruppinställningar</h2>
       <div class="group-code-display">
         <span class="label">Gruppkod</span>
         <span id="display-group-code" class="group-code-value"></span>
-        <button id="btn-copy-code" class="btn-text">Kopiera</button>
+        <button id="btn-copy-code" class="btn-text">Kopiera kod</button>
+        <button id="btn-copy-join-link-group" class="btn-text">Kopiera länk</button>
       </div>
       <div class="form-group">
         <label for="input-new-player">Lägg till spelare</label>
@@ -235,6 +259,12 @@
     <div class="modal">
       <button class="modal-close-btn" id="btn-close-session-settings-x">✕</button>
       <h2>Sessionsinställningar</h2>
+      <div class="group-code-display" id="session-settings-group-code-row" style="display:none">
+        <span class="label">Gruppkod</span>
+        <span id="session-settings-group-code" class="group-code-value"></span>
+        <button id="btn-copy-code-session" class="btn-text">Kopiera kod</button>
+        <button id="btn-copy-join-link" class="btn-text">Kopiera länk</button>
+      </div>
       <div class="form-group">
         <label for="input-session-name-edit">Sessionens namn</label>
         <input type="text" id="input-session-name-edit" placeholder="T.ex. Fredagspoker" maxlength="40" />
@@ -252,10 +282,13 @@
 
   <!-- Session Detail Modal -->
   <div id="modal-session-detail" class="modal-overlay hidden">
-    <div class="modal">
+    <div class="modal modal-session-detail">
       <button class="modal-close-btn" id="btn-close-detail-x">✕</button>
-      <h2 id="detail-session-name">Session</h2>
-      <div id="detail-entries-list" class="detail-entries-list"></div>
+      <div class="detail-modal-header">
+        <h2 id="detail-session-name" class="detail-session-title">Session</h2>
+        <button id="btn-detail-unit-toggle" class="btn-detail-unit hidden">p</button>
+      </div>
+      <div id="detail-entries-list"></div>
     </div>
   </div>
 

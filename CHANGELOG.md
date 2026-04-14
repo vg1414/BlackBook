@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 15)
+- UX: animationer – screen-transitions, staggerade listor, ripple på knappar, spring-animationer
+- UX: lobby – logo faller in med studs, kort glider upp, guld-glöd i bakgrunden
+- UX: bottom nav – guld-pill-indikator, aktiv ikon skalas upp
+- UX: FAB – pulserar med guld-glöd, gradient
+- UX: toast – slide-in med backdrop blur
+- UX: modaler – backdrop blur på overlay, rundare hörn
+- UX: inputs – guld-glow vid fokus
+- UX: header och bottom nav – glassmorphism (blur-bakgrund)
+- UX: touch-targets uppgraderade till 44px minimum (Apple HIG)
+- Fix: lade till `mobile-web-app-capable` meta-tag för Android PWA
+- Fix: raderade oanvända icon-192.png och icon-512.png
+
+## 2026-04-14 (uppdatering 14)
+- Fix: stavning "Grupptinställningar" → "Gruppinställningar"
+- UX: "Kopiera länk"-knapp även i gruppinställningarna
+
+## 2026-04-14 (uppdatering 13)
+- UX: "Kopiera länk"-knapp i sessionsinställningar – kopierar en join-länk med gruppkoden inbakad (?join=KOD)
+- UX: deep link-stöd – om man öppnar appen med ?join=KOD fylls koden i automatiskt och namnsteget visas direkt
+
+## 2026-04-14 (uppdatering 12)
+- Fix: poängvärde i kr förifyllt korrekt när sessionsinställningar öppnas (|| → ?? för att inte missa värdet 0)
+- UX: gruppkod visas och kan kopieras direkt från sessionsinställningarna
+
+## 2026-04-14 (uppdatering 11)
+- UX: papperskorgen borttagen från session-headern (radering sker via kugghjulet)
+- UX: kr/p-switchen flyttad till bredvid Registrera-knappen istället för i headern
+- UX: anteckningsblocket visas alltid direkt när sessionen öppnas, inte bara efter första registrering
+
 ## 2026-04-14 (uppdatering 10)
 - Fix: SW v8 – alla /BlackBook/-paths bytta till / för att matcha Cloudflare-hosting
 - Fix: manifest.json start_url och scope uppdaterade till /

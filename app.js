@@ -11,9 +11,9 @@ import {
 import {
   showScreen, showToast,
   renderBalances, renderSettlements, renderConfirmedTransactions,
-  renderActiveSessionPreview,
+  renderActiveSessionPreview, renderClosedSessionsOnDashboard,
   renderQuickMode, renderHistory, renderSessionDetail,
-  renderGroupPlayers, renderSessionPlayerSelect
+  renderGroupPlayers, renderSessionPlayerSelect, renderStats
 } from './modules/ui.js';
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession } from './modules/session.js';
@@ -38,14 +38,23 @@ const state = {
 
 function init() {
   const saved = getSavedGroup();
-  if (saved) {
+  const joinParam = new URLSearchParams(location.search).get('join')?.toUpperCase();
+
+  if (saved && !joinParam) {
     state.groupCode = saved.groupCode;
     state.playerId = saved.playerId;
     state.playerName = saved.playerName;
     connectToGroup();
   } else {
     showScreen('lobby');
-    prefillCode();
+    if (joinParam) {
+      document.getElementById('input-group-code').value = joinParam;
+      handleCodeBlur();
+      // Rensa ?join= från URL utan att ladda om sidan
+      history.replaceState(null, '', location.pathname);
+    } else {
+      prefillCode();
+    }
   }
 
   bindEvents();
@@ -225,7 +234,9 @@ function onSessionsUpdate() {
   state.activeSessionId = active ? active[0] : null;
 
   renderActiveSessionPreview(state.sessions, state.players);
+  renderClosedSessionsOnDashboard(state.sessions, state.players, state.entries);
   renderHistory(state.sessions, state.players, state.entries);
+  renderStats(state.sessions, state.players, state.entries);
 
   if (state.activeSessionId) {
     const session = state.sessions[state.activeSessionId];
@@ -310,6 +321,8 @@ async function handleClearBook() {
 function onEntriesUpdate() {
   renderSessionRounds();
   renderHistory(state.sessions, state.players, state.entries);
+  renderClosedSessionsOnDashboard(state.sessions, state.players, state.entries);
+  renderStats(state.sessions, state.players, state.entries);
   // Refresh chart if it's open
   const chartModal = document.getElementById('modal-chart');
   if (!chartModal.classList.contains('hidden') && !chartModal.classList.contains('closing')) {
@@ -326,7 +339,7 @@ function renderSessionRounds() {
     .filter(e => e.sessionId === state.activeSessionId && !e.deleted)
     .sort((a, b) => a.timestamp - b.timestamp);
 
-  if (sessionEntries.length === 0) { container.innerHTML = ''; return; }
+  if (sessionEntries.length === 0) { container.innerHTML = '<div class="notepad-empty"></div>'; return; }
 
   // Gruppera entries per omgång (< 5s isär)
   const rounds = [];
@@ -549,6 +562,12 @@ function bindEvents() {
   document.getElementById('btn-copy-code').addEventListener('click', () => {
     navigator.clipboard?.writeText(state.groupCode).then(() => showToast('Kod kopierad!'));
   });
+  document.getElementById('btn-copy-join-link-group').addEventListener('click', () => {
+    if (state.groupCode) {
+      const url = `${location.origin}${location.pathname}?join=${state.groupCode}`;
+      navigator.clipboard.writeText(url).then(() => showToast('Länk kopierad!')).catch(() => showToast(url));
+    }
+  });
   document.getElementById('btn-add-player').addEventListener('click', handleAddPlayer);
   document.getElementById('input-new-player').addEventListener('keydown', e => {
     if (e.key === 'Enter') handleAddPlayer();
@@ -566,13 +585,23 @@ function bindEvents() {
   // Session back / close / delete / chart / settings
   document.getElementById('btn-back-dashboard').addEventListener('click', () => { showScreen('dashboard'); updateUnitToggleBtn(); });
   document.getElementById('btn-close-session').addEventListener('click', handleCloseSession);
-  document.getElementById('btn-delete-session').addEventListener('click', handleDeleteActiveSession);
   document.getElementById('btn-session-chart').addEventListener('click', handleOpenChart);
   document.getElementById('btn-close-chart-x').addEventListener('click', () => closeModal('modal-chart'));
   document.getElementById('btn-session-settings').addEventListener('click', openSessionSettingsModal);
   document.getElementById('btn-toggle-unit').addEventListener('click', handleToggleUnit);
   document.getElementById('btn-close-session-settings-x').addEventListener('click', () => closeModal('modal-session-settings'));
   document.getElementById('btn-save-session-settings').addEventListener('click', handleSaveSessionSettings);
+  document.getElementById('btn-copy-code-session').addEventListener('click', () => {
+    if (state.groupCode) {
+      navigator.clipboard.writeText(state.groupCode).then(() => showToast('Kopierat!')).catch(() => showToast(state.groupCode));
+    }
+  });
+  document.getElementById('btn-copy-join-link').addEventListener('click', () => {
+    if (state.groupCode) {
+      const url = `${location.origin}${location.pathname}?join=${state.groupCode}`;
+      navigator.clipboard.writeText(url).then(() => showToast('Länk kopierad!')).catch(() => showToast(url));
+    }
+  });
 
   document.getElementById('quick-players-list').addEventListener('input', e => {
     if (e.target.classList.contains('amount-input')) updateQuickSum();
@@ -604,6 +633,16 @@ function bindEvents() {
   // Active session preview click → go to session
   document.getElementById('active-session-preview').addEventListener('click', () => {
     if (state.activeSessionId) showScreen('session');
+  });
+
+  // Closed sessions on dashboard → open detail modal
+  document.getElementById('closed-sessions-list').addEventListener('click', e => {
+    const item = e.target.closest('.closed-session-item');
+    if (!item) return;
+    const sessionId = item.dataset.sessionId;
+    const session = { ...state.sessions[sessionId], id: sessionId };
+    renderSessionDetail(session, state.entries, state.players);
+    openModal('modal-session-detail');
   });
 
   // Settlement toggle
@@ -908,7 +947,7 @@ function handleOpenChart() {
   const useKr = !!pointValue;
   const unitLabel = useKr ? 'kr' : 'p';
 
-  const colors = ['#e05252','#e08c52','#d4af37','#4caf82','#5291e0','#9b52e0','#e052b8','#52d4c8'];
+  const colors = ['#e05252','#4fc3f7','#66bb6a','#ffd54f','#ba68c8','#ff8a65','#4db6ac','#f06292'];
   const datasets = playerIds
     .filter(id => state.players[id])
     .map((id, i) => {
@@ -1141,7 +1180,18 @@ function openSessionSettingsModal() {
   if (!state.activeSessionId) return;
   const session = state.sessions[state.activeSessionId];
   document.getElementById('input-session-name-edit').value = session?.name || '';
-  document.getElementById('input-session-point-value-modal').value = session?.pointValue || '';
+  document.getElementById('input-session-point-value-modal').value = session?.pointValue ?? '';
+
+  // Visa gruppkod
+  const codeRow = document.getElementById('session-settings-group-code-row');
+  const codeEl = document.getElementById('session-settings-group-code');
+  if (state.groupCode) {
+    codeEl.textContent = state.groupCode;
+    codeRow.style.display = '';
+  } else {
+    codeRow.style.display = 'none';
+  }
+
   openModal('modal-session-settings');
 }
 
@@ -1189,9 +1239,8 @@ function updateUnitToggleBtn(animate = false) {
     setTimeout(() => btn.classList.remove('flipping'), 260);
   }
   label.textContent = pv ? 'kr' : 'p';
-  // Visa alltid i session-headern (knappen är inline där nu)
-  const onSession = document.getElementById('screen-session')?.classList.contains('active');
-  btn.style.display = onSession ? 'flex' : 'none';
+  // Knappen sitter nu i session-sticky-top, alltid flex
+  btn.style.display = 'flex';
 }
 
 async function handleSaveSessionSettings() {
@@ -1212,8 +1261,22 @@ async function handleSaveSessionSettings() {
 // ===== HELPERS =====
 
 function randomColor() {
-  const colors = ['#e05252', '#e08c52', '#d4af37', '#4caf82', '#5291e0', '#9b52e0', '#e052b8', '#52d4c8'];
-  return colors[Math.floor(Math.random() * colors.length)];
+  const palette = [
+    '#e05252', // röd
+    '#4fc3f7', // ljusblå
+    '#66bb6a', // grön
+    '#ffd54f', // gul
+    '#ba68c8', // lila
+    '#ff8a65', // orange
+    '#4db6ac', // turkos
+    '#f06292', // rosa
+  ];
+  const usedColors = Object.values(state.players || {})
+    .filter(p => !p.deleted)
+    .map(p => p.color);
+  const available = palette.filter(c => !usedColors.includes(c));
+  const pool = available.length > 0 ? available : palette;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 // ===== SERVICE WORKER =====
