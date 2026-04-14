@@ -348,9 +348,24 @@ function renderSessionRounds() {
     if (totals[e.playerId] !== undefined) totals[e.playerId] += e.amount;
   });
 
+  // Beräkna löpande total för spelaren i fokus (2-spelarläge: spelaren med flest entries / mestadels vinnaren)
+  // Vi räknar kumulativ summa per runda (äldst→nyast) för att visa total-cirkel
+  const focusId = twoPlayer ? playerIds[0] : null;
+  const runningTotals = []; // index matchar rounds (äldst→nyast)
+  if (focusId) {
+    let cum = 0;
+    rounds.forEach(round => {
+      round.forEach(e => { if (e.playerId === focusId) cum += e.amount; });
+      runningTotals.push(cum);
+    });
+  }
+
   // Nyaste omgången överst (rounds är sorterade äldst→nyast, vi vänder)
-  const roundsHtml = rounds.slice().reverse().map((round, i) => {
+  const reversedRounds = rounds.slice().reverse();
+  const roundsHtml = reversedRounds.map((round, i) => {
     const isLatest = i === 0;
+    // i=0 är nyast → originalindex = rounds.length - 1 - i
+    const origIdx = rounds.length - 1 - i;
 
     let parts;
     if (twoPlayer) {
@@ -372,7 +387,16 @@ function renderSessionRounds() {
       }).join('');
     }
 
-    return `<div class="round-row ${isLatest ? 'round-latest' : 'round-old'}">${parts}</div>`;
+    // Löpande total-cirkel (bara 2-spelarläge)
+    let totalCircle = '';
+    if (twoPlayer && focusId) {
+      const cumVal = runningTotals[origIdx];
+      const cumDisplay = formatPoints(cumVal, pointValue);
+      const sign = cumVal > 0 ? '+' : '';
+      totalCircle = `<span class="round-running-total">${sign}${cumDisplay}</span>`;
+    }
+
+    return `<div class="round-row ${isLatest ? 'round-latest' : 'round-old'}">${parts}${totalCircle}</div>`;
   }).join('');
 
   // Totalsumma-rad
