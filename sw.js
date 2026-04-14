@@ -1,16 +1,16 @@
-const CACHE_NAME = 'blackbook-v6';
+const CACHE_NAME = 'blackbook-v8';
 const STATIC_ASSETS = [
-  '/BlackBook/',
-  '/BlackBook/index.html',
-  '/BlackBook/style.css',
-  '/BlackBook/app.js',
-  '/BlackBook/modules/firebase.js',
-  '/BlackBook/modules/settlement.js',
-  '/BlackBook/modules/ui.js',
-  '/BlackBook/modules/session.js',
-  '/BlackBook/manifest.json',
-  '/BlackBook/favicon.png',
-  '/BlackBook/apple-touch-icon-180x180.png'
+  '/',
+  '/index.html',
+  '/style.css',
+  '/app.js',
+  '/modules/firebase.js',
+  '/modules/settlement.js',
+  '/modules/ui.js',
+  '/modules/session.js',
+  '/manifest.json',
+  '/favicon.png',
+  '/apple-touch-icon-180x180.png'
 ];
 
 // Install – cache static assets (en och en, så en miss inte kraschar allt)
@@ -32,9 +32,8 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 // Fetch – network-first for everything (fallback to cache offline)
@@ -62,7 +61,7 @@ self.addEventListener('fetch', event => {
       return caches.match(request).then(cached => {
         if (cached) return cached;
         if (request.mode === 'navigate') {
-          return caches.match('/BlackBook/index.html');
+          return caches.match('/index.html');
         }
       });
     })

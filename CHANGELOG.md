@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 10)
+- Fix: SW v8 – alla /BlackBook/-paths bytta till / för att matcha Cloudflare-hosting
+- Fix: manifest.json start_url och scope uppdaterade till /
+
 ## 2026-04-14 (uppdatering 9)
 - Fix: SW v6 – cacheinstallation kraschar inte längre om en enstaka fil saknas
 
