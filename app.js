@@ -16,7 +16,7 @@ import {
   renderGroupPlayers, renderSessionPlayerSelect, renderStats
 } from './modules/ui.js';
 import { formatPoints } from './modules/settlement.js';
-import { submitQuickResults, endSession } from './modules/session.js';
+import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
 import { sekToOre, oreToSek } from './modules/settlement.js';
 
 // ===== STATE =====
@@ -220,8 +220,9 @@ async function connectToGroup() {
 // ===== REACTIVE UPDATES =====
 
 function onPlayersUpdate() {
-  renderBalances(state.balances, state.players, state.playerId);
-  renderSettlements(state.balances, state.players);
+  const pointValue = getActivePointValue();
+  renderBalances(state.balances, state.players, state.playerId, pointValue);
+  renderSettlements(state.balances, state.players, state.confirmations, pointValue);
   renderGroupPlayers(state.players, state.playerId);
   if (state.activeSessionId && state.sessions[state.activeSessionId]) {
     const session = state.sessions[state.activeSessionId];
@@ -263,8 +264,9 @@ function onBalancesUpdate() {
 }
 
 function onConfirmationsUpdate() {
-  renderSettlements(state.balances, state.players, state.confirmations);
-  renderConfirmedTransactions(state.balances, state.players, state.confirmations);
+  const pointValue = getActivePointValue();
+  renderSettlements(state.balances, state.players, state.confirmations, pointValue);
+  renderConfirmedTransactions(state.balances, state.players, state.confirmations, pointValue);
   checkAllSettled();
 }
 
@@ -332,14 +334,20 @@ function onEntriesUpdate() {
 
 function renderSessionRounds() {
   const container = document.getElementById('session-rounds-list');
-  if (!container || !state.activeSessionId) { if (container) container.innerHTML = ''; return; }
+  const clearStickyTotal = () => {
+    const el = document.getElementById('session-sticky-total');
+    if (el) el.innerHTML = '';
+  };
+
+  if (!container || !state.activeSessionId) { if (container) container.innerHTML = ''; clearStickyTotal(); return; }
 
   const session = state.sessions[state.activeSessionId];
-  const sessionEntries = Object.values(state.entries)
-    .filter(e => e.sessionId === state.activeSessionId && !e.deleted)
+  const sessionEntries = Object.entries(state.entries)
+    .filter(([, e]) => e.sessionId === state.activeSessionId && !e.deleted)
+    .map(([id, e]) => ({ ...e, _id: id }))
     .sort((a, b) => a.timestamp - b.timestamp);
 
-  if (sessionEntries.length === 0) { container.innerHTML = '<div class="notepad-empty"></div>'; return; }
+  if (sessionEntries.length === 0) { container.innerHTML = '<div class="notepad-empty"></div>'; clearStickyTotal(); return; }
 
   // Gruppera entries per omgång (< 5s isär)
   const rounds = [];
@@ -386,7 +394,10 @@ function renderSessionRounds() {
       }).join('');
     }
 
-    return `<div class="round-row ${isLatest ? 'round-latest' : 'round-old'}">${parts}</div>`;
+    const undoBtn = isLatest
+      ? `<button class="btn-undo-round" data-entry-ids="${round.map(e => e._id).join(',')}" title="Ångra senaste">↩</button>`
+      : '';
+    return `<div class="round-row ${isLatest ? 'round-latest' : 'round-old'}">${undoBtn}${parts}</div>`;
   }).join('');
 
   // Stor total-cirkel (2-spelarläge: visa spelaren i fokus totalt)
@@ -610,6 +621,26 @@ function bindEvents() {
 
   // Quick submit
   document.getElementById('btn-quick-submit').addEventListener('click', handleQuickSubmit);
+
+  // Ångra senaste omgång (delegerat på rounds-listan)
+  document.getElementById('session-rounds-list').addEventListener('click', async e => {
+    const btn = e.target.closest('.btn-undo-round');
+    if (!btn) return;
+    const ids = btn.dataset.entryIds ? btn.dataset.entryIds.split(',').filter(Boolean) : [];
+    if (ids.length === 0) return;
+    btn.disabled = true;
+    try {
+      await Promise.all(ids.map(id => {
+        const entry = state.entries[id];
+        if (!entry) return Promise.resolve();
+        return undoEntry(state.groupCode, id, entry.playerId, entry.amount);
+      }));
+      showToast('Senaste registrering ångrad');
+    } catch (err) {
+      showToast('Fel: ' + err.message);
+      btn.disabled = false;
+    }
+  });
 
   // History item buttons (delegated)
   document.getElementById('history-list').addEventListener('click', e => {

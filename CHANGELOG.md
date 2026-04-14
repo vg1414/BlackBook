@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-04-14 (uppdatering 19)
+- Fix: förslag till uppgörelse visar nu alltid kr (inte p) när poängvärde är satt – `onPlayersUpdate` och `onConfirmationsUpdate` skickade inte med `pointValue`
+
+## 2026-04-14 (uppdatering 18)
+- Fix: session-sticky-total rensas nu korrekt vid early-return (ingen session / inga entries), förhindrar att spelare från en tidigare session visas i totalsumma-raden
+
+## 2026-04-14 (uppdatering 17)
+- UX: kr/p-switchen i sessiondetalj-modalen flyttad till höger på meta-raden (rundor/tid) – långt ifrån stäng-knappen, naturlig plats i flödet
+
+## 2026-04-14 (uppdatering 16)
+- Fix: header-avskärning – `height` → `min-height` med korrekt padding-top för safe-area/notch
+- UX: ångra-knapp (↩) i marginalen på senaste omgången i anteckningsblocket
+
 ## 2026-04-14 (uppdatering 15)
 - UX: animationer – screen-transitions, staggerade listor, ripple på knappar, spring-animationer
 - UX: lobby – logo faller in med studs, kort glider upp, guld-glöd i bakgrunden
