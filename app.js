@@ -359,17 +359,16 @@ function renderSessionRounds() {
       if (winner) {
         const player = state.players[winner.playerId];
         const display = formatPoints(winner.amount, pointValue);
-        parts = `<span class="round-entry" style="color:${player.color}">${player.name} ${display}</span>`;
+        parts = `<span class="round-entry">${player.name} ${display}</span>`;
       } else {
-        // Alla noll – visa ingenting meningsfullt
-        parts = '<span class="round-entry" style="color:var(--text-muted)">0</span>';
+        parts = '<span class="round-entry">0</span>';
       }
     } else {
       parts = round.map(e => {
         const player = state.players[e.playerId];
         if (!player) return '';
         const display = formatPoints(e.amount, pointValue);
-        return `<span class="round-entry" style="color:${player.color}">${player.name} ${display}</span>`;
+        return `<span class="round-entry">${player.name} ${display}</span>`;
       }).join('');
     }
 
@@ -418,19 +417,6 @@ function getQuickAmounts() {
 
 function updateQuickSum() {
   const amounts = getQuickAmounts();
-
-  // Uppdatera spegelbelopp om det är 2 spelare
-  const inputs = document.querySelectorAll('#quick-players-list .amount-input');
-  if (inputs.length === 1) {
-    const valA = parseFloat(inputs[0].value) || 0;
-    const mirrorEl = document.querySelector('[id^="mirror-amount-"]');
-    if (mirrorEl) {
-      const pointValue = getActivePointValue();
-      mirrorEl.textContent = formatPoints(-valA * 100, pointValue);
-    }
-    return;
-  }
-
   const total = Object.values(amounts).reduce((s, v) => s + v, 0);
   const el = document.getElementById('quick-sum');
   el.textContent = total === 0 ? '0 kr' : `${total > 0 ? '+' : ''}${total.toFixed(0)} kr`;
@@ -1019,15 +1005,16 @@ async function handleDeleteSession(sessionId) {
 async function handleQuickSubmit() {
   if (!state.activeSessionId) { showToast('Ingen aktiv session'); return; }
   const amounts = getQuickAmounts();
-  const playerIds = Object.keys(amounts);
 
-  // 2-spelarläge: fyll i motspelaren automatiskt
-  if (playerIds.length === 1) {
-    const idA = playerIds[0];
-    const session = state.sessions[state.activeSessionId];
-    const allIds = session?.playerIds ? Object.keys(session.playerIds) : [];
-    const idB = allIds.find(id => id !== idA && state.players[id]);
-    if (idB) amounts[idB] = -amounts[idA];
+  // 2-spelarläge: om bara ett fält är ifyllt, sätt det som plus och den andre som minus
+  const inputs = document.querySelectorAll('#quick-players-list .amount-input');
+  if (inputs.length === 2) {
+    const filledInputs = Array.from(inputs).filter(i => i.value.trim() !== '');
+    if (filledInputs.length === 1) {
+      const filledId = filledInputs[0].dataset.playerId;
+      const emptyId = Array.from(inputs).find(i => i.dataset.playerId !== filledId).dataset.playerId;
+      amounts[emptyId] = -amounts[filledId];
+    }
   }
 
   const total = Object.values(amounts).reduce((s, v) => s + v, 0);
@@ -1038,7 +1025,7 @@ async function handleQuickSubmit() {
 
   try {
     await submitQuickResults(state.groupCode, state.activeSessionId, amounts);
-    document.querySelectorAll('#quick-players-list .amount-input').forEach(i => i.value = 0);
+    document.querySelectorAll('#quick-players-list .amount-input').forEach(i => i.value = '');
     updateQuickSum();
     showToast('Resultat registrerat!');
   } catch (err) {

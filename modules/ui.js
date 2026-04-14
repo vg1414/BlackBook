@@ -200,12 +200,12 @@ export function renderQuickMode(players, sessionPlayerIds) {
       <div class="quick-player-row" data-player-id="${idA}">
         <div class="player-avatar" style="background:${pA.color}20;color:${pA.color}">${pA.name.charAt(0)}</div>
         <span class="quick-player-name">${escHtml(pA.name)}</span>
-        <input class="amount-input" type="number" value="0" data-player-id="${idA}" inputmode="numeric" />
+        <input class="amount-input" type="number" value="" placeholder="0" data-player-id="${idA}" inputmode="numeric" />
       </div>
-      <div class="quick-player-row two-player-mirror" data-player-id="${idB}">
+      <div class="quick-player-row" data-player-id="${idB}">
         <div class="player-avatar" style="background:${pB.color}20;color:${pB.color}">${pB.name.charAt(0)}</div>
         <span class="quick-player-name">${escHtml(pB.name)}</span>
-        <span class="mirror-amount" id="mirror-amount-${idB}" style="color:${pB.color}">0 p</span>
+        <input class="amount-input" type="number" value="" placeholder="0" data-player-id="${idB}" inputmode="numeric" />
       </div>
     `;
     setTimeout(() => container.querySelector('.amount-input')?.select(), 50);

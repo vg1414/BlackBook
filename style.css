@@ -1377,13 +1377,16 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .round-old {
-  opacity: 0.55;
+  opacity: 0.6;
+  text-decoration: line-through;
+  text-decoration-color: rgba(26,26,26,0.5);
 }
 
 .round-entry {
   font-family: 'Caveat', cursive;
   font-size: 17px;
   font-weight: 600;
+  color: #1a1a1a;
 }
 
 .session-screen-content {
