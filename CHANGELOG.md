@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-15 (uppdatering 31)
+- Feature: "Gruppens totaler" – hopfällbar panel på dashboarden som visar ackumulerat saldo per spelare över alla stängda sessioner
+- Feature: Totalen räknas om automatiskt vid sessionsstängning och radering
+- Feature: Bootstrap-logik – om `/totals/` saknas i Firebase körs `recalcTotals` automatiskt vid inladdning
+
 ## 2026-04-15 (uppdatering 30)
 - UX: "Totalt spelade" borttaget från Höjdpunkter i chart-modal (visas redan i meta-raden)
 - UX: chart-modal stats-vy komprimerad (sd-body--compact) – mindre text/padding/avatarer men fortfarande läsbart per iOS/Android-standard

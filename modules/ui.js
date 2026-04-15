@@ -8,6 +8,7 @@ import { minimizePayments, oreToSek, formatAmount, formatPoints } from './settle
 
 let toastTimer = null;
 let detailUnitMode = 'kr'; // 'kr' | 'p'
+let statsUnitMode = 'p'; // 'p' | 'kr'
 
 export function showToast(message, duration = 2500) {
   const toast = document.getElementById('toast');
@@ -115,6 +116,46 @@ export function renderSettlements(balances, players, confirmations = {}, pointVa
         <span class="settlement-to">${escHtml(toName)}</span>
         <span class="settlement-amount">${amtDisplay}</span>
         <button class="btn-confirm-tx" data-from="${t.from}" data-to="${t.to}" data-amount="${t.amount}" title="Bekräfta betalning">✓</button>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===== TOTALS =====
+
+export function renderTotals(totals, players, pointValue) {
+  const section = document.getElementById('section-totals');
+  const container = document.getElementById('totals-list');
+  if (!section || !container) return;
+
+  if (!players || Object.keys(players).length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  const hasTotals = Object.values(totals || {}).some(t => (t.net || 0) !== 0);
+  if (!hasTotals) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+
+  const items = Object.entries(players)
+    .map(([id, player]) => ({ id, player, net: totals[id]?.net || 0 }))
+    .sort((a, b) => b.net - a.net);
+
+  container.innerHTML = items.map(({ id, player, net }) => {
+    const amtCls = net > 0 ? 'positive' : net < 0 ? 'negative' : 'zero';
+    const display = pointValue
+      ? (net >= 0 ? '+' : '') + Math.round((net / 100) * pointValue) + ' kr'
+      : (net >= 0 ? '+' : '') + (net / 100) + ' p';
+    const initial = player.name.charAt(0).toUpperCase();
+    return `
+      <div class="totals-item">
+        <div class="player-avatar" style="background:${player.color}20;color:${player.color}">${initial}</div>
+        <span class="totals-name">${escHtml(player.name)}</span>
+        <span class="totals-amount ${amtCls}">${display}</span>
       </div>
     `;
   }).join('');
@@ -618,7 +659,7 @@ export function renderStats(sessions, players, entries) {
     return;
   }
 
-  // Bygg upp per-session data: {sessionId, rounds, playerTotals}
+  // Bygg upp per-session data: {sessionId, rounds, playerTotals, pointValue}
   const sessionData = closed.map(([id, s]) => {
     const playerIds = s.playerIds ? Object.keys(s.playerIds) : [];
     const sessionEntries = Object.values(entries || {})
@@ -642,7 +683,10 @@ export function renderStats(sessions, players, entries) {
       if (playerTotals[e.playerId] !== undefined) playerTotals[e.playerId] += e.amount;
     });
 
-    return { id, session: s, rounds, playerTotals, playerIds };
+    // pointValue: kr per poäng. Fallback 1 (1p = 1kr) om saknas
+    const pointValue = s._storedPointValue || s.pointValue || 1;
+
+    return { id, session: s, rounds, playerTotals, playerIds, pointValue };
   });
 
   // === Globala stats ===
@@ -653,27 +697,32 @@ export function renderStats(sessions, players, entries) {
     ? (roundCounts.reduce((a, b) => a + b, 0) / roundCounts.length).toFixed(1)
     : 0;
 
-  // Högsta poäng i en runda (globalt, per spelare)
-  let highestRound = { playerId: null, amount: 0 };
-  sessionData.forEach(({ rounds }) => {
+  // Högsta poäng i en runda (globalt, per spelare) – spara sessionens pointValue med
+  let highestRound = { playerId: null, amount: 0, pointValue: 1 };
+  sessionData.forEach(({ rounds, pointValue }) => {
     rounds.forEach(round => {
       round.forEach(e => {
         if (e.amount > highestRound.amount) {
-          highestRound = { playerId: e.playerId, amount: e.amount };
+          highestRound = { playerId: e.playerId, amount: e.amount, pointValue };
         }
       });
     });
   });
 
   // === Per-spelare stats ===
+  // highestRound och balance-värden sparas med sin sessions pointValue
   const playerStats = {};
   Object.keys(players).forEach(pid => {
-    playerStats[pid] = { wins: 0, losses: 0, streak: 0, maxStreak: 0, currentStreak: 0, highestRound: 0, peakBalance: null, lowestBalance: null };
+    playerStats[pid] = {
+      wins: 0, losses: 0, maxStreak: 0,
+      highestRound: 0, highestRoundPV: 1,
+      peakBalance: null, peakBalancePV: 1,
+      lowestBalance: null, lowestBalancePV: 1,
+    };
   });
 
   // Vinststreak: per session räknas vinnaren (högst total)
-  sessionData.forEach(({ playerTotals, rounds }) => {
-    // Vem vann sessionen
+  sessionData.forEach(({ playerTotals, rounds, pointValue }) => {
     let maxTotal = -Infinity;
     let winner = null;
     Object.entries(playerTotals).forEach(([pid, total]) => {
@@ -691,23 +740,30 @@ export function renderStats(sessions, players, entries) {
     rounds.forEach(round => {
       round.forEach(e => {
         if (!playerStats[e.playerId]) return;
+        const ps = playerStats[e.playerId];
         // Högsta enskild runda
-        if (e.amount > playerStats[e.playerId].highestRound) {
-          playerStats[e.playerId].highestRound = e.amount;
+        if (e.amount > ps.highestRound) {
+          ps.highestRound = e.amount;
+          ps.highestRoundPV = pointValue;
         }
         // Löpande saldo
         runningBalance[e.playerId] = (runningBalance[e.playerId] || 0) + e.amount;
         const bal = runningBalance[e.playerId];
-        const ps = playerStats[e.playerId];
-        if (ps.peakBalance === null || bal > ps.peakBalance) ps.peakBalance = bal;
-        if (ps.lowestBalance === null || bal < ps.lowestBalance) ps.lowestBalance = bal;
+        if (ps.peakBalance === null || bal > ps.peakBalance) {
+          ps.peakBalance = bal;
+          ps.peakBalancePV = pointValue;
+        }
+        if (ps.lowestBalance === null || bal < ps.lowestBalance) {
+          ps.lowestBalance = bal;
+          ps.lowestBalancePV = pointValue;
+        }
       });
     });
   });
 
   // Streak: gå igenom sessioner i tidsordning (äldst → nyast)
   const orderedSessions = [...sessionData].sort((a, b) => (a.session.closedAt || 0) - (b.session.closedAt || 0));
-  const streakMap = {}; // pid → currentStreak
+  const streakMap = {};
   Object.keys(players).forEach(pid => { streakMap[pid] = 0; });
 
   orderedSessions.forEach(({ playerTotals }) => {
@@ -727,10 +783,31 @@ export function renderStats(sessions, players, entries) {
     });
   });
 
+  // === Formatering beroende på läge ===
+  // fmtVal: konverterar ett råvärde (i 1/100-poäng) till visningssträng med rätt enhet
+  const useKr = statsUnitMode === 'kr';
+  const fmtVal = (rawAmount, pointValue) => {
+    const points = rawAmount / 100;
+    if (useKr) {
+      return `${Math.round(points * pointValue)} kr`;
+    }
+    return `${points.toFixed(0)} p`;
+  };
+  const fmtValSigned = (rawAmount, pointValue) => {
+    const points = rawAmount / 100;
+    if (useKr) {
+      const kr = Math.round(points * pointValue);
+      return (kr >= 0 ? '+' : '') + kr + ' kr';
+    }
+    return (points >= 0 ? '+' : '') + points.toFixed(0) + ' p';
+  };
+
   // Rendera
   const highestRoundPlayer = highestRound.playerId && players[highestRound.playerId]
     ? players[highestRound.playerId].name : '–';
-  const highestRoundVal = highestRound.amount !== 0 ? `${(highestRound.amount / 100).toFixed(0)} p` : '–';
+  const highestRoundVal = highestRound.amount !== 0
+    ? fmtVal(highestRound.amount, highestRound.pointValue)
+    : '–';
 
   const globalHtml = `
     <div class="stats-section">
@@ -760,9 +837,11 @@ export function renderStats(sessions, players, entries) {
     .filter(([pid]) => playerStats[pid] && (playerStats[pid].wins + playerStats[pid].losses) > 0)
     .map(([pid, p]) => {
       const ps = playerStats[pid];
-      const highRnd = ps.highestRound !== 0 ? `${(ps.highestRound / 100).toFixed(0)} p` : '–';
-      const peak = ps.peakBalance !== null && ps.peakBalance > 0 ? `+${(ps.peakBalance / 100).toFixed(0)} p` : '–';
-      const lowest = ps.lowestBalance !== null && ps.lowestBalance < 0 ? `${(ps.lowestBalance / 100).toFixed(0)} p` : '–';
+      const highRnd = ps.highestRound !== 0 ? fmtVal(ps.highestRound, ps.highestRoundPV) : '–';
+      const peak = ps.peakBalance !== null && ps.peakBalance > 0
+        ? fmtValSigned(ps.peakBalance, ps.peakBalancePV) : '–';
+      const lowest = ps.lowestBalance !== null && ps.lowestBalance < 0
+        ? fmtValSigned(ps.lowestBalance, ps.lowestBalancePV) : '–';
       return `
         <div class="stats-player-card">
           <div class="stats-player-header">
@@ -800,6 +879,19 @@ export function renderStats(sessions, players, entries) {
     }).join('');
 
   container.innerHTML = globalHtml + `<div class="stats-section"><h3 class="stats-section-title">Per spelare</h3>${playersHtml}</div>`;
+
+  // FAB-knapp för kr/p-toggle – fast position, följer med vid scroll
+  const existing = document.getElementById('stats-unit-fab');
+  if (existing) existing.remove();
+  const fab = document.createElement('button');
+  fab.id = 'stats-unit-fab';
+  fab.className = 'btn-detail-unit stats-unit-fab' + (useKr ? ' btn-detail-unit-active' : '');
+  fab.textContent = useKr ? 'kr' : 'p';
+  fab.addEventListener('click', () => {
+    statsUnitMode = statsUnitMode === 'p' ? 'kr' : 'p';
+    renderStats(sessions, players, entries);
+  });
+  document.getElementById('screen-stats').appendChild(fab);
 }
 
 // ===== HELPERS =====

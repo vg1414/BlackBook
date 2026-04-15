@@ -684,6 +684,36 @@ input[type="number"]::-webkit-outer-spin-button {
   gap: 8px;
 }
 
+/* ===== TOTALS ===== */
+.totals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+}
+
+.totals-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.totals-name {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.totals-amount {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals-amount.positive { color: var(--positive); }
+.totals-amount.negative { color: var(--negative); }
+.totals-amount.zero { color: var(--text-muted); }
+
 .settlement-item {
   background: var(--bg-2);
   border-radius: var(--radius-sm);
@@ -2326,6 +2356,16 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .sd-meta-row .btn-detail-unit {
   margin-left: auto;
+}
+
+.stats-unit-fab {
+  position: fixed;
+  bottom: calc(var(--nav-height) + 16px + env(safe-area-inset-bottom));
+  right: 16px;
+  z-index: 200;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  font-size: 15px;
+  padding: 6px 16px;
 }
 
 .sd-meta-chip {

@@ -172,6 +172,7 @@ export async function softDeleteEntry(groupCode, entryId, playerId, amount) {
   await runTransaction(balRef, current => {
     return (current || 0) - amount;
   });
+
 }
 
 export function listenEntries(groupCode, callback) {
@@ -220,6 +221,53 @@ export function listenConfirmations(groupCode, callback) {
 export async function clearBook(groupCode) {
   // Remove all confirmations only – balances are kept for history
   await set(ref(db, `groups/${groupCode}/confirmations`), null);
+}
+
+// ===== TOTALS =====
+
+export function listenTotals(groupCode, callback) {
+  const r = ref(db, `groups/${groupCode}/totals`);
+  let bootstrapped = false;
+  return onValue(r, async snap => {
+    if (!snap.exists() && !bootstrapped) {
+      bootstrapped = true;
+      await recalcTotals(groupCode);
+      // recalcTotals skriver till Firebase → triggar onValue igen med data
+      return;
+    }
+    callback(snap.exists() ? snap.val() : {});
+  });
+}
+
+export async function recalcTotals(groupCode) {
+  // Räkna om totals från scratch – bara entries från stängda sessioner
+  const [entriesSnap, playersSnap, sessionsSnap] = await Promise.all([
+    get(ref(db, `groups/${groupCode}/entries`)),
+    get(ref(db, `groups/${groupCode}/players`)),
+    get(ref(db, `groups/${groupCode}/sessions`))
+  ]);
+  const entries = entriesSnap.exists() ? entriesSnap.val() : {};
+  const players = playersSnap.exists() ? playersSnap.val() : {};
+  const sessions = sessionsSnap.exists() ? sessionsSnap.val() : {};
+
+  const closedSessionIds = new Set(
+    Object.entries(sessions)
+      .filter(([, s]) => s.status === 'closed')
+      .map(([id]) => id)
+  );
+
+  const totals = {};
+  Object.keys(players).forEach(pid => {
+    if (!players[pid].deleted) totals[pid] = { net: 0 };
+  });
+
+  Object.values(entries).forEach(e => {
+    if (!e.deleted && closedSessionIds.has(e.sessionId) && totals[e.playerId] !== undefined) {
+      totals[e.playerId].net = (totals[e.playerId].net || 0) + e.amount;
+    }
+  });
+
+  await set(ref(db, `groups/${groupCode}/totals`), totals);
 }
 
 // ===== META =====

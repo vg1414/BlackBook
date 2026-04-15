@@ -6,7 +6,8 @@ import {
   listenPlayers, listenSessions, listenBalances, listenEntries,
   createSession, getMeta, deletePlayer, reopenSession, deleteSession,
   confirmTransaction, unconfirmTransaction, listenConfirmations,
-  clearBook, deleteGroup, updateSessionPointValue, updateSessionMeta
+  clearBook, deleteGroup, updateSessionPointValue, updateSessionMeta,
+  listenTotals, recalcTotals
 } from './modules/firebase.js';
 import {
   showScreen, showToast,
@@ -14,7 +15,7 @@ import {
   renderActiveSessionPreview, renderClosedSessionsOnDashboard,
   renderQuickMode, renderHistory, renderSessionDetail,
   renderGroupPlayers, renderSessionPlayerSelect, renderStats,
-  buildSessionStatsHTML
+  buildSessionStatsHTML, renderTotals
 } from './modules/ui.js';
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
@@ -32,6 +33,7 @@ const state = {
   players: {},
   sessions: {},
   balances: {},
+  totals: {},
   entries: {},
   confirmations: {},
   activeSessionId: null,
@@ -228,6 +230,10 @@ async function connectToGroup() {
     listenConfirmations(groupCode, confirmations => {
       state.confirmations = confirmations || {};
       onConfirmationsUpdate();
+    }),
+    listenTotals(groupCode, totals => {
+      state.totals = totals || {};
+      onTotalsUpdate();
     })
   );
 
@@ -312,6 +318,11 @@ function onConfirmationsUpdate() {
   renderSettlements(state.balances, state.players, state.confirmations, settlementPV);
   renderConfirmedTransactions(state.balances, state.players, state.confirmations, settlementPV);
   checkAllSettled();
+}
+
+function onTotalsUpdate() {
+  const settlementPV = getActivePointValueForSettlement();
+  renderTotals(state.totals, state.players, settlementPV);
 }
 
 function checkAllSettled() {
@@ -843,6 +854,16 @@ function bindEvents() {
     panel.classList.toggle('open', !isOpen);
   });
 
+  // Totals toggle
+  document.getElementById('btn-toggle-totals').addEventListener('click', () => {
+    const btn = document.getElementById('btn-toggle-totals');
+    const panel = document.getElementById('totals-panel');
+    const isOpen = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+    panel.setAttribute('aria-hidden', isOpen ? 'true' : 'false');
+    panel.classList.toggle('open', !isOpen);
+  });
+
   // Bekräfta transaktion
   document.getElementById('settlements-list').addEventListener('click', e => {
     const btn = e.target.closest('.btn-confirm-tx');
@@ -1076,6 +1097,7 @@ async function handleCloseSession() {
   if (!state.activeSessionId) return;
   if (!confirm('Stäng sessionen? Resultaten sparas.')) return;
   await endSession(state.groupCode, state.activeSessionId);
+  await recalcTotals(state.groupCode);
   showScreen('dashboard');
   showToast('Session stängd');
 }
@@ -1341,6 +1363,7 @@ async function handleDeleteSession(sessionId) {
   const label = session?.name || 'Session';
   if (!confirm(`Radera "${label}"? Detta går inte att ångra.`)) return;
   await deleteSession(state.groupCode, sessionId);
+  await recalcTotals(state.groupCode);
   showToast('Session raderad');
 }
 
