@@ -298,37 +298,9 @@ export function renderSessionDetail(session, entries, players) {
   renderSessionDetailBody(session, entries, players, effectivePointValue, storedPointValue);
 }
 
-function renderSessionDetailBody(session, entries, players, pointValue, storedPointValue) {
-  const listEl = document.getElementById('detail-entries-list');
+// ===== SESSION STATS HTML BUILDER (shared between detail modal and chart modal) =====
 
-  const sessionEntries = Object.entries(entries || {})
-    .filter(([, e]) => e.sessionId === session.id && !e.deleted)
-    .sort((a, b) => a[1].timestamp - b[1].timestamp);
-
-  if (sessionEntries.length === 0) {
-    listEl.innerHTML = '<p class="muted">Inga poster</p>';
-    return;
-  }
-  const playerIds = session.playerIds ? Object.keys(session.playerIds) : [];
-
-  // Gruppera i rundor (< 5s isär)
-  const rounds = [];
-  let prevTime = null;
-  for (const [, e] of sessionEntries) {
-    if (prevTime === null || e.timestamp - prevTime > 5000) {
-      rounds.push([]);
-      prevTime = e.timestamp;
-    }
-    rounds[rounds.length - 1].push(e);
-  }
-
-  // Totaler per spelare
-  const totals = {};
-  playerIds.forEach(pid => { totals[pid] = 0; });
-  sessionEntries.forEach(([, e]) => {
-    if (totals[e.playerId] !== undefined) totals[e.playerId] += e.amount;
-  });
-
+export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointValue, storedPointValue, durationStr, showUnitToggle) {
   // Vinnare (högst total)
   let winner = null, winnerTotal = -Infinity;
   Object.entries(totals).forEach(([pid, val]) => {
@@ -350,7 +322,6 @@ function renderSessionDetailBody(session, entries, players, pointValue, storedPo
   const streaks = {};
   playerIds.forEach(pid => { streaks[pid] = { current: 0, max: 0 }; });
   rounds.forEach(round => {
-    // Vinnare i denna runda = högst poäng
     let roundWinner = null, roundMax = -Infinity;
     round.forEach(e => {
       if (e.amount > roundMax) { roundMax = e.amount; roundWinner = e.playerId; }
@@ -365,18 +336,7 @@ function renderSessionDetailBody(session, entries, players, pointValue, storedPo
     });
   });
 
-  // Spelduration
-  const firstTs = sessionEntries[0]?.[1]?.timestamp;
-  const lastTs = sessionEntries[sessionEntries.length - 1]?.[1]?.timestamp;
-  let durationStr = '–';
-  if (firstTs && lastTs && lastTs > firstTs) {
-    const mins = Math.round((lastTs - firstTs) / 60000);
-    durationStr = mins >= 60
-      ? `${Math.floor(mins / 60)}h ${mins % 60}m`
-      : `${mins} min`;
-  }
-
-  // Bygg rankad spelarlista (sorterad vinnare → förlorare)
+  // Rankad spelarlista (sorterad vinnare → förlorare)
   const ranked = playerIds
     .filter(pid => players[pid])
     .sort((a, b) => (totals[b] || 0) - (totals[a] || 0));
@@ -394,14 +354,15 @@ function renderSessionDetailBody(session, entries, players, pointValue, storedPo
   });
 
   const fmt = (v) => formatPoints(v, pointValue);
+  const compact = !showUnitToggle; // chart-modal-läge = kompakt
 
-  listEl.innerHTML = `
-    <div class="sd-body">
+  return `
+    <div class="${compact ? 'sd-body sd-body--compact' : 'sd-body'}">
 
       <div class="sd-meta-row">
         <span class="sd-meta-chip">🃏 ${rounds.length} rundor</span>
         <span class="sd-meta-chip">⏱ ${durationStr}</span>
-        ${storedPointValue ? `<button class="btn-detail-unit${detailUnitMode === 'kr' ? ' btn-detail-unit-active' : ''}" id="btn-detail-unit-toggle">${detailUnitMode === 'kr' ? 'kr' : 'p'}</button>` : ''}
+        ${showUnitToggle && storedPointValue ? `<button class="btn-detail-unit${detailUnitMode === 'kr' ? ' btn-detail-unit-active' : ''}" id="btn-detail-unit-toggle">${detailUnitMode === 'kr' ? 'kr' : 'p'}</button>` : ''}
       </div>
 
       <div class="sd-section-label">Resultat</div>
@@ -453,7 +414,7 @@ function renderSessionDetailBody(session, entries, players, pointValue, storedPo
           </div>
         </div>` : ''}
 
-        ${rounds.length > 0 ? `
+        ${!compact && rounds.length > 0 ? `
         <div class="sd-highlight-card sd-highlight-rounds">
           <div class="sd-hl-icon">🎯</div>
           <div class="sd-hl-content">
@@ -489,6 +450,51 @@ function renderSessionDetailBody(session, entries, players, pointValue, storedPo
 
     </div>
   `;
+}
+
+function renderSessionDetailBody(session, entries, players, pointValue, storedPointValue) {
+  const listEl = document.getElementById('detail-entries-list');
+
+  const sessionEntries = Object.entries(entries || {})
+    .filter(([, e]) => e.sessionId === session.id && !e.deleted)
+    .sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+  if (sessionEntries.length === 0) {
+    listEl.innerHTML = '<p class="muted">Inga poster</p>';
+    return;
+  }
+  const playerIds = session.playerIds ? Object.keys(session.playerIds) : [];
+
+  // Gruppera i rundor (< 5s isär)
+  const rounds = [];
+  let prevTime = null;
+  for (const [, e] of sessionEntries) {
+    if (prevTime === null || e.timestamp - prevTime > 5000) {
+      rounds.push([]);
+      prevTime = e.timestamp;
+    }
+    rounds[rounds.length - 1].push(e);
+  }
+
+  // Totaler per spelare
+  const totals = {};
+  playerIds.forEach(pid => { totals[pid] = 0; });
+  sessionEntries.forEach(([, e]) => {
+    if (totals[e.playerId] !== undefined) totals[e.playerId] += e.amount;
+  });
+
+  // Spelduration
+  const firstTs = sessionEntries[0]?.[1]?.timestamp;
+  const lastTs = sessionEntries[sessionEntries.length - 1]?.[1]?.timestamp;
+  let durationStr = '–';
+  if (firstTs && lastTs && lastTs > firstTs) {
+    const mins = Math.round((lastTs - firstTs) / 60000);
+    durationStr = mins >= 60
+      ? `${Math.floor(mins / 60)}h ${mins % 60}m`
+      : `${mins} min`;
+  }
+
+  listEl.innerHTML = buildSessionStatsHTML(rounds, playerIds, players, totals, pointValue, storedPointValue, durationStr, true);
 
   // Koppla kr/p-toggle om den renderades
   if (storedPointValue) {

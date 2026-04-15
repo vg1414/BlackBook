@@ -2540,6 +2540,101 @@ input[type="number"]::-webkit-outer-spin-button {
   transform: translateY(0);
 }
 
+/* ===== SD COMPACT (chart-modal-läge) ===== */
+/* Minimierar alla sd-* komponenter för att rymmas i chart-modalen */
+
+.sd-body--compact {
+  gap: 10px;
+  margin-top: 0;
+}
+
+.sd-body--compact .sd-meta-row {
+  gap: 6px;
+}
+
+.sd-body--compact .sd-meta-chip {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+.sd-body--compact .sd-section-label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  margin-bottom: -4px;
+}
+
+.sd-body--compact .sd-podium {
+  gap: 4px;
+}
+
+.sd-body--compact .sd-player-row {
+  padding: 7px 10px;
+  gap: 8px;
+}
+
+.sd-body--compact .sd-player-avatar {
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+}
+
+.sd-body--compact .sd-player-name {
+  font-size: 13px;
+}
+
+.sd-body--compact .sd-player-total {
+  font-size: 13px;
+}
+
+.sd-body--compact .sd-highlights {
+  gap: 6px;
+}
+
+.sd-body--compact .sd-highlight-card {
+  padding: 9px 10px;
+  gap: 8px;
+}
+
+.sd-body--compact .sd-hl-icon {
+  font-size: 16px;
+}
+
+.sd-body--compact .sd-hl-title {
+  font-size: 9px;
+}
+
+.sd-body--compact .sd-hl-value {
+  font-size: 14px;
+}
+
+.sd-body--compact .sd-hl-who {
+  font-size: 11px;
+}
+
+.sd-body--compact .sd-player-stats {
+  gap: 5px;
+}
+
+.sd-body--compact .sd-pstat-row {
+  padding: 7px 10px;
+  gap: 4px;
+}
+
+.sd-body--compact .sd-avatar-sm {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+}
+
+.sd-body--compact .sd-pstat-name {
+  font-size: 12px;
+}
+
+.sd-body--compact .sd-chip {
+  font-size: 10px;
+  padding: 2px 7px;
+}
+
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar {
   width: 3px;

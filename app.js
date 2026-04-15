@@ -13,7 +13,8 @@ import {
   renderBalances, renderSettlements, renderConfirmedTransactions,
   renderActiveSessionPreview, renderClosedSessionsOnDashboard,
   renderQuickMode, renderHistory, renderSessionDetail,
-  renderGroupPlayers, renderSessionPlayerSelect, renderStats
+  renderGroupPlayers, renderSessionPlayerSelect, renderStats,
+  buildSessionStatsHTML
 } from './modules/ui.js';
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
@@ -1158,83 +1159,55 @@ function handleOpenChart() {
 
   const labels = ['Start', ...rounds.map((_, i) => `R${i + 1}`)];
 
-  // === Beräkna session-stats (topp/botten per spelare) ===
-  const sessionStats = {};
-  playerIds.filter(id => state.players[id]).forEach(id => {
-    sessionStats[id] = { peak: null, lowest: null, total: 0, roundCount: 0 };
-  });
+  // Beräkna löpande saldo per spelare (för totaler i stats-panelen)
   const runBal = {};
   rounds.forEach(round => {
     round.forEach(e => {
-      if (!sessionStats[e.playerId]) return;
       runBal[e.playerId] = (runBal[e.playerId] || 0) + e.amount;
-      const bal = runBal[e.playerId];
-      const s = sessionStats[e.playerId];
-      if (s.peak === null || bal > s.peak) s.peak = bal;
-      if (s.lowest === null || bal < s.lowest) s.lowest = bal;
     });
-    // Räkna runda om minst en spelare hade en entry
-    if (round.length > 0) {
-      playerIds.forEach(id => {
-        if (sessionStats[id]) sessionStats[id].roundCount++;
-      });
-    }
-  });
-  playerIds.forEach(id => {
-    if (sessionStats[id]) sessionStats[id].total = runBal[id] || 0;
   });
 
-  // Rendera stats-panelen
+  // Rendera stats-panelen – samma layout som stängd session-modal
   const statsContainer = document.getElementById('chart-session-stats');
   if (statsContainer) {
-    const fmt = (v, unit) => {
-      if (v === null) return '–';
-      const rounded = Math.round(useKr ? v / 100 * pointValue : v / 100);
-      return (rounded > 0 ? '+' : '') + rounded + ' ' + unit;
-    };
-    const activePlayers = playerIds.filter(id => state.players[id]);
-    statsContainer.innerHTML = `
-      <p class="chart-stats-section-title">Denna session · ${rounds.length} rundor</p>
-      <div class="chart-stats-grid">
-        ${activePlayers.map(id => {
-          const p = state.players[id];
-          const s = sessionStats[id];
-          const totalVal = fmt(s.total * 1, unitLabel);
-          const peakVal = s.peak !== null && s.peak > 0 ? fmt(s.peak, unitLabel) : '–';
-          const lowVal = s.lowest !== null && s.lowest < 0 ? fmt(s.lowest, unitLabel) : '–';
-          const totalClass = s.total > 0 ? 'positive' : s.total < 0 ? 'negative' : '';
-          return `
-            <div class="chart-stats-player">
-              <div class="chart-stats-player-header">
-                <div class="player-avatar" style="background:${p.color}20;color:${p.color};width:24px;height:24px;min-width:24px;font-size:11px">${p.name.charAt(0)}</div>
-                <span class="chart-stats-player-name">${p.name}</span>
-              </div>
-              <div class="chart-stat-row">
-                <span class="chart-stat-row-label">Totalt</span>
-                <span class="chart-stat-row-value ${totalClass}">${totalVal}</span>
-              </div>
-              <div class="chart-stats-divider"></div>
-              <div class="chart-stat-row">
-                <span class="chart-stat-row-label">▲ Topp</span>
-                <span class="chart-stat-row-value positive">${peakVal}</span>
-              </div>
-              <div class="chart-stat-row">
-                <span class="chart-stat-row-label">▼ Botten</span>
-                <span class="chart-stat-row-value negative">${lowVal}</span>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
+    // Totaler per spelare (från runBal som redan är beräknad)
+    const totals = {};
+    playerIds.forEach(id => { totals[id] = runBal[id] || 0; });
+
+    // Spelduration från sessionEntries
+    const firstTs = sessionEntries[0]?.timestamp;
+    const lastTs = sessionEntries[sessionEntries.length - 1]?.timestamp;
+    let durationStr = '–';
+    if (firstTs && lastTs && lastTs > firstTs) {
+      const mins = Math.round((lastTs - firstTs) / 60000);
+      durationStr = mins >= 60
+        ? `${Math.floor(mins / 60)}h ${mins % 60}m`
+        : `${mins} min`;
+    }
+
+    statsContainer.innerHTML = buildSessionStatsHTML(
+      rounds, playerIds, state.players, totals,
+      useKr ? pointValue : null,
+      pointValue || null,
+      durationStr,
+      false
+    );
+
+    // Staggerad animation
+    setTimeout(() => {
+      statsContainer.querySelectorAll('.sd-highlight-card, .sd-player-row, .sd-pstat-row').forEach((el, i) => {
+        el.style.animationDelay = `${i * 60}ms`;
+        el.classList.add('sd-animate-in');
+      });
+    }, 10);
   }
 
   openModal('modal-chart');
 
-  // Återställ alltid till diagram-fliken vid öppning
-  document.querySelectorAll('.chart-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'chart'));
-  document.getElementById('chart-tab-chart').classList.remove('hidden');
-  document.getElementById('chart-tab-stats').classList.add('hidden');
+  // Öppna alltid på stats-fliken
+  document.querySelectorAll('.chart-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'stats'));
+  document.getElementById('chart-tab-chart').classList.add('hidden');
+  document.getElementById('chart-tab-stats').classList.remove('hidden');
 
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 

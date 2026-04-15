@@ -300,15 +300,15 @@
     <div class="modal modal-chart">
       <button class="modal-close-btn" id="btn-close-chart-x">✕</button>
       <div class="chart-modal-tabs">
-        <button class="chart-tab active" data-tab="chart">Diagram</button>
-        <button class="chart-tab" data-tab="stats">Stats</button>
+        <button class="chart-tab active" data-tab="stats">Stats</button>
+        <button class="chart-tab" data-tab="chart">Diagram</button>
       </div>
-      <div class="chart-tab-panel" id="chart-tab-chart">
+      <div class="chart-tab-panel hidden" id="chart-tab-chart">
         <div class="chart-container">
           <canvas id="session-chart"></canvas>
         </div>
       </div>
-      <div class="chart-tab-panel hidden" id="chart-tab-stats">
+      <div class="chart-tab-panel" id="chart-tab-stats">
         <div id="chart-session-stats"></div>
       </div>
     </div>

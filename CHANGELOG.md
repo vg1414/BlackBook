@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-04-15 (uppdatering 30)
+- UX: "Totalt spelade" borttaget från Höjdpunkter i chart-modal (visas redan i meta-raden)
+- UX: chart-modal stats-vy komprimerad (sd-body--compact) – mindre text/padding/avatarer men fortfarande läsbart per iOS/Android-standard
+- Feature: exakt samma stats som stängd session (Resultat, Höjdpunkter, Per spelare) visas i aktiv sessions diagramknapp
+
+## 2026-04-15 (uppdatering 29)
+- Feature: diagramknappens stats-flik visar nu samma innehåll som en stängd session – Resultat, Höjdpunkter (streak, bästa runda, sessionsvinnare), Per spelare
+- UX: stats-fliken öppnas som standard (inte diagram), flikordning ändrad till Stats | Diagram
+
 ## 2026-04-15 (uppdatering 28)
 - Feature: diagram-modalen har nu två flikar – Diagram och Stats
 - Stats-fliken visar totalt saldo, topp och botten per spelare för aktiv session
