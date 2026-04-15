@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-15 (uppdatering 32)
+- Fix: Stäng-knappen (✕) i session-detail-modalen försvann när man scrollade – gjord sticky så den alltid syns
+
 ## 2026-04-15 (uppdatering 31)
 - Feature: "Gruppens totaler" – hopfällbar panel på dashboarden som visar ackumulerat saldo per spelare över alla stängda sessioner
 - Feature: Totalen räknas om automatiskt vid sessionsstängning och radering
