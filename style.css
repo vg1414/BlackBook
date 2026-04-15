@@ -47,7 +47,6 @@ body {
 #app {
   position: fixed;
   inset: 0;
-  top: env(safe-area-inset-top);
 }
 
 /* ===== SCREENS ===== */
@@ -81,6 +80,7 @@ body {
   padding: 16px;
   padding-bottom: calc(var(--nav-height) + 16px + env(safe-area-inset-bottom));
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 /* ===== HEADER ===== */
@@ -117,10 +117,24 @@ body {
   animation: shimmer 4s ease-in-out infinite;
 }
 
+/* Gruppnamn i dashboard-headern – varm amber-ton, skiljer sig från app-titeln */
+.header-title.header-title-group {
+  background: linear-gradient(90deg, #e8a020 0%, #f5c842 40%, #e09018 70%, #f5c842 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  background-size: 200% auto;
+  font-style: normal;
+  letter-spacing: 1px;
+  animation: shimmer 5s ease-in-out infinite;
+  color: transparent;
+}
+
 /* ===== LOBBY ===== */
 #screen-lobby {
   justify-content: center;
   overflow-y: auto;
+  padding-top: env(safe-area-inset-top);
   background:
     radial-gradient(ellipse 60% 50% at 50% 0%, rgba(212,175,55,0.07) 0%, transparent 70%),
     var(--bg);
@@ -933,23 +947,25 @@ input[type="number"]::-webkit-outer-spin-button {
 .quick-players-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 4px;
+  margin-bottom: 8px;
 }
 
 /* ===== QUICK PLAYER ROW (fler spelare) ===== */
 .quick-player-row {
   background: var(--bg-2);
   border-radius: var(--radius-sm);
-  padding: 7px 12px;
+  padding: 4px 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  min-height: 44px;
 }
 
 .quick-player-name {
   flex: 1;
   font-weight: 500;
+  font-size: 14px;
 }
 
 
@@ -982,10 +998,56 @@ input[type="number"]::-webkit-outer-spin-button {
   background: rgba(212, 175, 55, 0.1);
 }
 
+.amount-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quick-player-row .player-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.btn-sign-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #3a3a3a;
+  background: var(--bg-3);
+  color: var(--gold);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s ease, transform 0.12s var(--spring), background 0.15s ease;
+  line-height: 1;
+  padding: 0;
+  /* Utökad touch-yta utan att synas större */
+  touch-action: manipulation;
+  position: relative;
+}
+.btn-sign-toggle::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.btn-sign-toggle:active {
+  border-color: var(--gold);
+  transform: scale(0.88);
+  background: rgba(212, 175, 55, 0.15);
+}
+
 .amount-input {
-  width: 80px;
-  min-width: 80px;
-  max-width: 80px;
+  width: 68px;
+  min-width: 68px;
+  max-width: 68px;
   text-align: center;
   background: var(--bg-3);
   border: 1px solid #3a3a3a;
@@ -993,7 +1055,8 @@ input[type="number"]::-webkit-outer-spin-button {
   color: var(--text);
   font-size: 15px;
   font-weight: 600;
-  padding: 4px 4px;
+  padding: 3px 4px;
+  height: 34px;
 }
 
 .amount-input:focus {
@@ -1510,8 +1573,6 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 50vh;
-  overflow-y: auto;
 }
 
 .detail-entry-item {
@@ -1823,6 +1884,7 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
+  touch-action: pan-y;
 }
 
 .session-sticky-total {
@@ -1947,8 +2009,8 @@ input[type="number"]::-webkit-outer-spin-button {
   flex: 1;
   text-align: center;
   font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-weight: 500;
+  color: #c8a84e;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2048,6 +2110,19 @@ input[type="number"]::-webkit-outer-spin-button {
 .stat-card:nth-child(2) { animation-delay: 0.10s; }
 .stat-card:nth-child(3) { animation-delay: 0.15s; }
 .stat-card:nth-child(4) { animation-delay: 0.20s; }
+
+.stat-card--positive {
+  border-color: rgba(39, 174, 96, 0.35);
+}
+.stat-card--positive .stat-value {
+  color: #27ae60;
+}
+.stat-card--negative {
+  border-color: rgba(192, 57, 43, 0.35);
+}
+.stat-card--negative .stat-value {
+  color: #c0392b;
+}
 
 @keyframes statCardIn {
   from { opacity: 0; transform: scale(0.94); }

@@ -7,6 +7,7 @@ import { minimizePayments, oreToSek, formatAmount, formatPoints } from './settle
 // ===== TOAST =====
 
 let toastTimer = null;
+let detailUnitMode = 'kr'; // 'kr' | 'p'
 
 export function showToast(message, duration = 2500) {
   const toast = document.getElementById('toast');
@@ -193,33 +194,24 @@ export function renderQuickMode(players, sessionPlayerIds) {
   const sumRow = document.querySelector('.sum-row');
   if (sumRow) sumRow.style.display = twoPlayer ? 'none' : '';
 
+  const playerRow = (id, p) => `
+    <div class="quick-player-row" data-player-id="${id}">
+      <div class="player-avatar" style="background:${p.color}20;color:${p.color}">${p.name.charAt(0)}</div>
+      <span class="quick-player-name">${escHtml(p.name)}</span>
+      <div class="amount-input-wrap">
+        <button class="btn-sign-toggle" data-player-id="${id}" aria-label="Växla plus/minus">+</button>
+        <input class="amount-input" type="number" value="" placeholder="0" data-player-id="${id}" inputmode="decimal" min="0" />
+      </div>
+    </div>
+  `;
+
   if (twoPlayer) {
     const [idA, idB] = playersToShow;
     const pA = players[idA], pB = players[idB];
-    container.innerHTML = `
-      <div class="quick-player-row" data-player-id="${idA}">
-        <div class="player-avatar" style="background:${pA.color}20;color:${pA.color}">${pA.name.charAt(0)}</div>
-        <span class="quick-player-name">${escHtml(pA.name)}</span>
-        <input class="amount-input" type="number" value="" placeholder="0" data-player-id="${idA}" inputmode="numeric" />
-      </div>
-      <div class="quick-player-row" data-player-id="${idB}">
-        <div class="player-avatar" style="background:${pB.color}20;color:${pB.color}">${pB.name.charAt(0)}</div>
-        <span class="quick-player-name">${escHtml(pB.name)}</span>
-        <input class="amount-input" type="number" value="" placeholder="0" data-player-id="${idB}" inputmode="numeric" />
-      </div>
-    `;
+    container.innerHTML = playerRow(idA, pA) + playerRow(idB, pB);
     setTimeout(() => container.querySelector('.amount-input')?.select(), 50);
   } else {
-    container.innerHTML = playersToShow.map((id, i) => {
-      const p = players[id];
-      return `
-        <div class="quick-player-row" data-player-id="${id}">
-          <div class="player-avatar" style="background:${p.color}20;color:${p.color}">${p.name.charAt(0)}</div>
-          <span class="quick-player-name">${escHtml(p.name)}</span>
-          <input class="amount-input" type="number" value="" placeholder="0" data-player-id="${id}" inputmode="numeric" />
-        </div>
-      `;
-    }).join('');
+    container.innerHTML = playersToShow.map(id => playerRow(id, players[id])).join('');
     setTimeout(() => container.querySelector('.amount-input')?.select(), 50);
   }
 }
@@ -295,51 +287,19 @@ export function renderHistory(sessions, players, entries) {
 
 export function renderSessionDetail(session, entries, players) {
   const nameEl = document.getElementById('detail-session-name');
-  const listEl = document.getElementById('detail-entries-list');
-  const toggleBtn = document.getElementById('btn-detail-unit-toggle');
-
   nameEl.textContent = session.name || typeLabel(session.type);
 
   const storedPointValue = session._storedPointValue || session.pointValue || null;
 
-  // Visa/dölj toggle-knapp
-  if (storedPointValue && toggleBtn) {
-    toggleBtn.classList.remove('hidden');
-    // Håll track på om vi visar kr eller poäng; använd data-attribut
-    if (!toggleBtn.dataset.mode) toggleBtn.dataset.mode = 'kr';
-    const isKr = toggleBtn.dataset.mode === 'kr';
-    toggleBtn.textContent = isKr ? 'kr' : 'p';
-    toggleBtn.classList.toggle('btn-detail-unit-active', isKr);
+  // Återställ mode till 'kr' varje gång en ny session öppnas
+  detailUnitMode = 'kr';
 
-    // Ny listener varje gång — klona för att rensa gamla
-    const newBtn = toggleBtn.cloneNode(true);
-    toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
-    newBtn.addEventListener('click', () => {
-      newBtn.dataset.mode = newBtn.dataset.mode === 'kr' ? 'p' : 'kr';
-      renderSessionDetailBody(session, entries, players,
-        newBtn.dataset.mode === 'kr' ? storedPointValue : null, newBtn);
-    });
-  } else if (toggleBtn) {
-    toggleBtn.classList.add('hidden');
-    toggleBtn.dataset.mode = '';
-  }
-
-  const currentToggle = document.getElementById('btn-detail-unit-toggle');
-  const currentMode = currentToggle?.dataset.mode;
-  const effectivePointValue = (currentMode === 'kr' || !currentMode) ? storedPointValue : null;
-
-  renderSessionDetailBody(session, entries, players, effectivePointValue, currentToggle);
+  const effectivePointValue = storedPointValue && detailUnitMode === 'kr' ? storedPointValue : null;
+  renderSessionDetailBody(session, entries, players, effectivePointValue, storedPointValue);
 }
 
-function renderSessionDetailBody(session, entries, players, pointValue, toggleBtn) {
+function renderSessionDetailBody(session, entries, players, pointValue, storedPointValue) {
   const listEl = document.getElementById('detail-entries-list');
-
-  // Uppdatera knappens text och stil
-  if (toggleBtn && !toggleBtn.classList.contains('hidden')) {
-    const isKr = pointValue !== null;
-    toggleBtn.textContent = isKr ? 'kr' : 'p';
-    toggleBtn.classList.toggle('btn-detail-unit-active', isKr);
-  }
 
   const sessionEntries = Object.entries(entries || {})
     .filter(([, e]) => e.sessionId === session.id && !e.deleted)
@@ -441,6 +401,7 @@ function renderSessionDetailBody(session, entries, players, pointValue, toggleBt
       <div class="sd-meta-row">
         <span class="sd-meta-chip">🃏 ${rounds.length} rundor</span>
         <span class="sd-meta-chip">⏱ ${durationStr}</span>
+        ${storedPointValue ? `<button class="btn-detail-unit${detailUnitMode === 'kr' ? ' btn-detail-unit-active' : ''}" id="btn-detail-unit-toggle">${detailUnitMode === 'kr' ? 'kr' : 'p'}</button>` : ''}
       </div>
 
       <div class="sd-section-label">Resultat</div>
@@ -449,11 +410,8 @@ function renderSessionDetailBody(session, entries, players, pointValue, toggleBt
           const p = players[pid];
           const val = totals[pid] || 0;
           const cls = val > 0 ? 'pos' : val < 0 ? 'neg' : '';
-          const medals = ['🥇', '🥈', '🥉'];
-          const medal = medals[i] || '';
           return `
             <div class="sd-player-row ${i === 0 ? 'sd-winner' : ''}">
-              <span class="sd-medal">${medal}</span>
               <div class="sd-player-avatar" style="background:${p.color}22;color:${p.color}">${p.name.charAt(0)}</div>
               <span class="sd-player-name">${escHtml(p.name)}</span>
               <span class="sd-player-total ${cls}">${fmt(val)}</span>
@@ -531,6 +489,18 @@ function renderSessionDetailBody(session, entries, players, pointValue, toggleBt
 
     </div>
   `;
+
+  // Koppla kr/p-toggle om den renderades
+  if (storedPointValue) {
+    const btn = listEl.querySelector('#btn-detail-unit-toggle');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        detailUnitMode = detailUnitMode === 'kr' ? 'p' : 'kr';
+        const newPointValue = detailUnitMode === 'kr' ? storedPointValue : null;
+        renderSessionDetailBody(session, entries, players, newPointValue, storedPointValue);
+      });
+    }
+  }
 
   // Staggered entrance animation
   setTimeout(() => {
@@ -692,7 +662,7 @@ export function renderStats(sessions, players, entries) {
   // === Per-spelare stats ===
   const playerStats = {};
   Object.keys(players).forEach(pid => {
-    playerStats[pid] = { wins: 0, losses: 0, streak: 0, maxStreak: 0, currentStreak: 0, highestRound: 0 };
+    playerStats[pid] = { wins: 0, losses: 0, streak: 0, maxStreak: 0, currentStreak: 0, highestRound: 0, peakBalance: null, lowestBalance: null };
   });
 
   // Vinststreak: per session räknas vinnaren (högst total)
@@ -710,12 +680,21 @@ export function renderStats(sessions, players, entries) {
       }
     });
 
-    // Högsta runda per spelare
+    // Högsta runda per spelare + löpande saldo (topp/botten)
+    const runningBalance = {};
     rounds.forEach(round => {
       round.forEach(e => {
-        if (playerStats[e.playerId] && e.amount > playerStats[e.playerId].highestRound) {
+        if (!playerStats[e.playerId]) return;
+        // Högsta enskild runda
+        if (e.amount > playerStats[e.playerId].highestRound) {
           playerStats[e.playerId].highestRound = e.amount;
         }
+        // Löpande saldo
+        runningBalance[e.playerId] = (runningBalance[e.playerId] || 0) + e.amount;
+        const bal = runningBalance[e.playerId];
+        const ps = playerStats[e.playerId];
+        if (ps.peakBalance === null || bal > ps.peakBalance) ps.peakBalance = bal;
+        if (ps.lowestBalance === null || bal < ps.lowestBalance) ps.lowestBalance = bal;
       });
     });
   });
@@ -776,6 +755,8 @@ export function renderStats(sessions, players, entries) {
     .map(([pid, p]) => {
       const ps = playerStats[pid];
       const highRnd = ps.highestRound !== 0 ? `${(ps.highestRound / 100).toFixed(0)} p` : '–';
+      const peak = ps.peakBalance !== null && ps.peakBalance > 0 ? `+${(ps.peakBalance / 100).toFixed(0)} p` : '–';
+      const lowest = ps.lowestBalance !== null && ps.lowestBalance < 0 ? `${(ps.lowestBalance / 100).toFixed(0)} p` : '–';
       return `
         <div class="stats-player-card">
           <div class="stats-player-header">
@@ -790,6 +771,14 @@ export function renderStats(sessions, players, entries) {
             <div class="stat-card">
               <div class="stat-value">${highRnd}</div>
               <div class="stat-label">Högsta runda</div>
+            </div>
+            <div class="stat-card stat-card--positive">
+              <div class="stat-value">${peak}</div>
+              <div class="stat-label">Högsta saldo</div>
+            </div>
+            <div class="stat-card stat-card--negative">
+              <div class="stat-value">${lowest}</div>
+              <div class="stat-label">Lägsta saldo</div>
             </div>
             <div class="stat-card">
               <div class="stat-value">${ps.wins}</div>

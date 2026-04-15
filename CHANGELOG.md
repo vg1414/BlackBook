@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-04-15 (uppdatering 27)
+- Fix: scrollning i session-skärmen fungerar nu på mobil (touch-action: pan-y på scroll-area)
+- Fix: scrollning i övriga skärmar (Saldo, Historik, Statistik) fick samma fix
+- Fix: scroll-i-scroll i session-detaljmodal borttagen (detail-entries-list begränsade inte längre listan)
+- Feature: Statistik visar nu högsta och lägsta löpande saldo per spelare (grön/röd färgkodning)
+
+## 2026-04-15 (uppdatering 25)
+- UX: spelarrader komprimerade – padding från 7px→4px, gap från 6px→4px, avatar från 36px→28px, inputhöjd 34px
+- UX: touch-yta på +/− behålls (44px via ::after pseudo-element) trots att knappen syns mindre
+- UX: spelarnamnets font-size sänkt till 14px för kompaktare rad
+
+## 2026-04-15 (uppdatering 24)
+- Fix: trycka − på tom input sparar nu "pending sign" – siffror som skrivs in efteråt blir automatiskt negativa
+- UX: negativa belopp visas i rött, positiva i vitt – lättare att se om man råkat ange fel tecken
+- Fix: färg och tecken återställs till standard efter att en omgång skickas in
+
+## 2026-04-15 (uppdatering 23)
+- Fix: gruppnamn hämtas nu från Firebase och sparas lokalt när man joinar på en ny enhet
+- Fix: gruppnamnet visas nu i dashboard-headern (ersätter "Black Book")
+- Fix: gruppkoden visas inte längre felaktigt som gruppnamn – gamla grupper utan namn faller tillbaka till "Black Book"
+- Fix: CSS-specificitet för amber-gradient på gruppnamn löst – korrekt guld-färg på alla enheter
+
+## 2026-04-15 (uppdatering 22)
+- Fix: +/- knapp bredvid varje inmatningsfält så man kan ange minusvärden på iPhone (där tangentbordet saknar minustecken)
+- Fix: Summa-raden byter nu enhet (kr/p) direkt när man trycker på växla-knappen
+
 ## 2026-04-14 (uppdatering 21)
 - Feature: modaler är nu swipebara – dra nedåt för att stänga, modalen följer fingret och glider ut ur botten
 
