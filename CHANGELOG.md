@@ -1,6 +1,11 @@
 # Changelog
 
-## 2026-04-15 (uppdatering 32)
+## 2026-04-15 (uppdatering 34)
+- Fix: saldo i kr nollställdes direkt vid bekräftelse av sista transaktionen – "Stäng boken"-knapp visas nu explicit istället för automatisk dialog
+- Fix: saldo i kr visade gammalt värde efter stängd bok – använder nu `totals` (nollställs vid clearBook) istället för `history` (permanent)
+- Fix: session-detail öppnas nu i poäng-läge som standard istället för kr
+
+## 2026-04-15 (uppdatering 33)
 - Fix: Stäng-knappen (✕) i session-detail-modalen försvann när man scrollade – gjord sticky så den alltid syns
 
 ## 2026-04-15 (uppdatering 31)

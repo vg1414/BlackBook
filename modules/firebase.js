@@ -110,6 +110,58 @@ export async function closeSession(groupCode, sessionId) {
     status: 'closed',
     closedAt: Date.now()
   });
+
+  // Uppdatera history (Gruppens totaler – nollställs aldrig)
+  // Dra bort sessionens tidigare bidrag (om den återöppnats), lägg till det nya
+  const [entriesSnap, sessSnap, histSnap, playersSnap] = await Promise.all([
+    get(ref(db, `groups/${groupCode}/entries`)),
+    get(ref(db, `groups/${groupCode}/sessions/${sessionId}`)),
+    get(ref(db, `groups/${groupCode}/history`)),
+    get(ref(db, `groups/${groupCode}/players`))
+  ]);
+  const entries = entriesSnap.exists() ? entriesSnap.val() : {};
+  const sess = sessSnap.exists() ? sessSnap.val() : {};
+  const history = histSnap.exists() ? histSnap.val() : {};
+  const players = playersSnap.exists() ? playersSnap.val() : {};
+  const pv = sess?.pointValue || sess?._storedPointValue || 0;
+
+  // Säkerställ att alla aktiva spelare finns i history
+  Object.keys(players).forEach(pid => {
+    if (!players[pid].deleted && !history[pid]) history[pid] = { net: 0, krNet: 0 };
+  });
+
+  // Dra bort sessionens tidigare sparade bidrag (undviker dubbelräkning vid återöppning)
+  const prevContrib = sess?._historyContrib || {};
+  Object.entries(prevContrib).forEach(([pid, c]) => {
+    if (history[pid]) {
+      history[pid].net -= c.net || 0;
+      history[pid].krNet -= c.krNet || 0;
+    }
+  });
+
+  // Räkna ut sessionens aktuella bidrag
+  const contrib = {};
+  Object.values(entries).forEach(e => {
+    if (!e.deleted && e.sessionId === sessionId) {
+      if (!contrib[e.playerId]) contrib[e.playerId] = { net: 0, krNet: 0 };
+      contrib[e.playerId].net += e.amount;
+      contrib[e.playerId].krNet += Math.round((e.amount / 100) * pv * 100);
+    }
+  });
+
+  // Lägg till det nya bidraget
+  Object.entries(contrib).forEach(([pid, c]) => {
+    if (history[pid]) {
+      history[pid].net += c.net;
+      history[pid].krNet += c.krNet;
+    }
+  });
+
+  // Spara history och sessionens bidrag (för att kunna dra av vid eventuell återöppning)
+  await Promise.all([
+    set(ref(db, `groups/${groupCode}/history`), history),
+    update(ref(db, `groups/${groupCode}/sessions/${sessionId}`), { _historyContrib: contrib })
+  ]);
 }
 
 export async function reopenSession(groupCode, sessionId) {
@@ -120,7 +172,24 @@ export async function reopenSession(groupCode, sessionId) {
 }
 
 export async function deleteSession(groupCode, sessionId) {
-  await set(ref(db, `groups/${groupCode}/sessions/${sessionId}`), null);
+  // Dra bort sessionens bidrag från history innan den raderas
+  const [sessSnap, histSnap] = await Promise.all([
+    get(ref(db, `groups/${groupCode}/sessions/${sessionId}`)),
+    get(ref(db, `groups/${groupCode}/history`))
+  ]);
+  const sess = sessSnap.exists() ? sessSnap.val() : {};
+  const history = histSnap.exists() ? histSnap.val() : {};
+  const prevContrib = sess?._historyContrib || {};
+  Object.entries(prevContrib).forEach(([pid, c]) => {
+    if (history[pid]) {
+      history[pid].net -= c.net || 0;
+      history[pid].krNet -= c.krNet || 0;
+    }
+  });
+  await Promise.all([
+    set(ref(db, `groups/${groupCode}/sessions/${sessionId}`), null),
+    set(ref(db, `groups/${groupCode}/history`), history)
+  ]);
 }
 
 export function listenSessions(groupCode, callback) {
@@ -198,17 +267,23 @@ export function listenBalances(groupCode, callback) {
 
 // ===== CONFIRMATIONS =====
 
-export async function confirmTransaction(groupCode, from, to, amount) {
+export async function confirmTransaction(groupCode, from, to, amount, amountKr) {
+  // amount = kr (heltal), amountKr = öre
   const key = `${from}_${to}_${amount}`;
   await set(ref(db, `groups/${groupCode}/confirmations/${key}`), {
-    from, to, amount,
+    from, to, amount, amountKr,
     confirmedAt: Date.now()
   });
+  // Justera totals.krNet (öre) så att kvarstående skulder minskar
+  await runTransaction(ref(db, `groups/${groupCode}/totals/${from}/krNet`), cur => (cur || 0) + amountKr);
+  await runTransaction(ref(db, `groups/${groupCode}/totals/${to}/krNet`), cur => (cur || 0) - amountKr);
 }
 
-export async function unconfirmTransaction(groupCode, from, to, amount) {
+export async function unconfirmTransaction(groupCode, from, to, amount, amountKr) {
   const key = `${from}_${to}_${amount}`;
   await set(ref(db, `groups/${groupCode}/confirmations/${key}`), null);
+  await runTransaction(ref(db, `groups/${groupCode}/totals/${from}/krNet`), cur => (cur || 0) - amountKr);
+  await runTransaction(ref(db, `groups/${groupCode}/totals/${to}/krNet`), cur => (cur || 0) + amountKr);
 }
 
 export function listenConfirmations(groupCode, callback) {
@@ -219,7 +294,21 @@ export function listenConfirmations(groupCode, callback) {
 }
 
 export async function clearBook(groupCode) {
-  // Remove all confirmations only – balances are kept for history
+  // Nollställ totals (uppgörelser) och rensa bekräftelser
+  // history (Gruppens totaler) rör vi INTE – det är permanent historik
+  const playersSnap = await get(ref(db, `groups/${groupCode}/players`));
+  const players = playersSnap.exists() ? playersSnap.val() : {};
+  const zeroed = {};
+  Object.keys(players).forEach(pid => {
+    if (!players[pid].deleted) zeroed[pid] = { net: 0, krNet: 0 };
+  });
+  const zeroedBalances = {};
+  Object.keys(players).forEach(pid => {
+    if (!players[pid].deleted) zeroedBalances[pid] = { net: 0 };
+  });
+  await set(ref(db, `groups/${groupCode}/totals`), zeroed);
+  // history (Gruppens totaler) nollställs aldrig – det är permanent ackumulerad historik
+  await set(ref(db, `groups/${groupCode}/balances`), zeroedBalances);
   await set(ref(db, `groups/${groupCode}/confirmations`), null);
 }
 
@@ -250,24 +339,36 @@ export async function recalcTotals(groupCode) {
   const players = playersSnap.exists() ? playersSnap.val() : {};
   const sessions = sessionsSnap.exists() ? sessionsSnap.val() : {};
 
-  const closedSessionIds = new Set(
-    Object.entries(sessions)
-      .filter(([, s]) => s.status === 'closed')
-      .map(([id]) => id)
+  const closedSessions = Object.fromEntries(
+    Object.entries(sessions).filter(([, s]) => s.status === 'closed')
   );
+  const closedSessionIds = new Set(Object.keys(closedSessions));
 
   const totals = {};
   Object.keys(players).forEach(pid => {
-    if (!players[pid].deleted) totals[pid] = { net: 0 };
+    if (!players[pid].deleted) totals[pid] = { net: 0, krNet: 0 };
   });
 
   Object.values(entries).forEach(e => {
     if (!e.deleted && closedSessionIds.has(e.sessionId) && totals[e.playerId] !== undefined) {
-      totals[e.playerId].net = (totals[e.playerId].net || 0) + e.amount;
+      totals[e.playerId].net += e.amount;
+      // krNet: poäng × kr/poäng för den sessionen. Sessioner utan pointValue bidrar 0 kr.
+      const sess = closedSessions[e.sessionId];
+      const pv = sess?.pointValue || sess?._storedPointValue || 0;
+      console.log(`[recalc] session=${e.sessionId} pointValue=${sess?.pointValue} _stored=${sess?._storedPointValue} pv=${pv} amount=${e.amount}`);
+      totals[e.playerId].krNet += Math.round((e.amount / 100) * pv * 100); // lagras i öre
     }
   });
 
   await set(ref(db, `groups/${groupCode}/totals`), totals);
+  // history (Gruppens totaler) skrivs INTE om av recalcTotals – den är permanent ackumulerad
+}
+
+export function listenHistory(groupCode, callback) {
+  const r = ref(db, `groups/${groupCode}/history`);
+  return onValue(r, snap => {
+    callback(snap.exists() ? snap.val() : {});
+  });
 }
 
 // ===== META =====

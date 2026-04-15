@@ -39,7 +39,7 @@ export function showScreen(screenId) {
 
 // ===== BALANCES =====
 
-export function renderBalances(balances, players, currentPlayerId, pointValue) {
+export function renderBalances(balances, players, currentPlayerId, totals, activePointValue, showKr) {
   const container = document.getElementById('balances-list');
   if (!players || Object.keys(players).length === 0) {
     container.innerHTML = '<p class="muted">Inga spelare ännu</p>';
@@ -56,7 +56,15 @@ export function renderBalances(balances, players, currentPlayerId, pointValue) {
     const amtCls = net > 0 ? 'positive' : net < 0 ? 'negative' : 'zero';
     const isYou = id === currentPlayerId;
     const initial = player.name.charAt(0).toUpperCase();
-    const display = formatPoints(net, pointValue);
+
+    let display;
+    if (showKr) {
+      const closedKrNet = totals[id]?.krNet || 0;
+      display = Math.round(closedKrNet / 100) + ' kr';
+    } else {
+      display = formatPoints(net, null);
+    }
+
     return `
       <div class="balance-item ${cls}">
         <div class="player-avatar" style="background:${player.color}20;color:${player.color}">${initial}</div>
@@ -71,7 +79,8 @@ export function renderBalances(balances, players, currentPlayerId, pointValue) {
 
 // ===== SETTLEMENTS =====
 
-export function renderSettlements(balances, players, confirmations = {}, pointValue) {
+// totals = { [playerId]: { net, krNet } }
+export function renderSettlements(totals, players, confirmations = {}) {
   const container = document.getElementById('settlements-list');
   const section = document.getElementById('section-settlements');
   const badge = document.getElementById('settlements-badge');
@@ -81,14 +90,20 @@ export function renderSettlements(balances, players, confirmations = {}, pointVa
     return;
   }
 
-  const netMap = {};
+  // Skulder baseras på totals (stängda sessioner), räknat i hela kronor
+  const krMap = {};
   Object.entries(players).forEach(([id]) => {
-    netMap[id] = balances[id]?.net || 0;
+    krMap[id] = Math.round((totals[id]?.krNet || 0) / 100);
   });
 
-  const transactions = minimizePayments(netMap);
+  const krTransactions = minimizePayments(krMap);
+
   const confirmedKeys = new Set(Object.keys(confirmations));
-  const pending = transactions.filter(t => !confirmedKeys.has(`${t.from}_${t.to}_${t.amount}`));
+
+  // Confirmation-nyckel baseras på kr-belopp (inga poäng-beroenden)
+  const pending = krTransactions.filter(t => {
+    return !confirmedKeys.has(`${t.from}_${t.to}_${t.amount}`);
+  });
 
   if (pending.length === 0) {
     section.style.display = 'none';
@@ -97,7 +112,6 @@ export function renderSettlements(balances, players, confirmations = {}, pointVa
 
   section.style.display = 'block';
 
-  // Update badge count
   if (badge) {
     badge.textContent = pending.length;
     badge.classList.toggle('visible', pending.length > 0);
@@ -106,16 +120,14 @@ export function renderSettlements(balances, players, confirmations = {}, pointVa
   container.innerHTML = pending.map(t => {
     const fromName = players[t.from]?.name || t.from;
     const toName = players[t.to]?.name || t.to;
-    const amtDisplay = pointValue
-      ? Math.abs(Math.round((t.amount / 100) * pointValue)) + ' kr'
-      : Math.abs(t.amount / 100) + ' p';
+    const amountKr = t.amount * 100; // öre för lagring
     return `
       <div class="settlement-item">
         <span class="settlement-from">${escHtml(fromName)}</span>
         <span class="settlement-arrow">→</span>
         <span class="settlement-to">${escHtml(toName)}</span>
-        <span class="settlement-amount">${amtDisplay}</span>
-        <button class="btn-confirm-tx" data-from="${t.from}" data-to="${t.to}" data-amount="${t.amount}" title="Bekräfta betalning">✓</button>
+        <span class="settlement-amount">${t.amount} kr</span>
+        <button class="btn-confirm-tx" data-from="${t.from}" data-to="${t.to}" data-amount="${t.amount}" data-amount-kr="${amountKr}" title="Bekräfta betalning">✓</button>
       </div>
     `;
   }).join('');
@@ -123,7 +135,7 @@ export function renderSettlements(balances, players, confirmations = {}, pointVa
 
 // ===== TOTALS =====
 
-export function renderTotals(totals, players, pointValue) {
+export function renderTotals(totals, players, showKr, sessions) {
   const section = document.getElementById('section-totals');
   const container = document.getElementById('totals-list');
   if (!section || !container) return;
@@ -133,8 +145,9 @@ export function renderTotals(totals, players, pointValue) {
     return;
   }
 
-  const hasTotals = Object.values(totals || {}).some(t => (t.net || 0) !== 0);
-  if (!hasTotals) {
+  // Visa sektionen om det finns minst en avslutad session
+  const hasClosedSession = Object.values(sessions || {}).some(s => s.status === 'closed');
+  if (!hasClosedSession) {
     section.style.display = 'none';
     return;
   }
@@ -142,13 +155,18 @@ export function renderTotals(totals, players, pointValue) {
   section.style.display = 'block';
 
   const items = Object.entries(players)
-    .map(([id, player]) => ({ id, player, net: totals[id]?.net || 0 }))
-    .sort((a, b) => b.net - a.net);
+    .map(([id, player]) => ({
+      id, player,
+      net: totals[id]?.net || 0,
+      krNet: totals[id]?.krNet || 0
+    }))
+    .sort((a, b) => showKr ? b.krNet - a.krNet : b.net - a.net);
 
-  container.innerHTML = items.map(({ id, player, net }) => {
-    const amtCls = net > 0 ? 'positive' : net < 0 ? 'negative' : 'zero';
-    const display = pointValue
-      ? (net >= 0 ? '+' : '') + Math.round((net / 100) * pointValue) + ' kr'
+  container.innerHTML = items.map(({ id, player, net, krNet }) => {
+    const val = showKr ? krNet : net;
+    const amtCls = val > 0 ? 'positive' : val < 0 ? 'negative' : 'zero';
+    const display = showKr
+      ? (krNet >= 0 ? '+' : '') + Math.round(krNet / 100) + ' kr'
       : (net >= 0 ? '+' : '') + (net / 100) + ' p';
     const initial = player.name.charAt(0).toUpperCase();
     return `
@@ -161,7 +179,7 @@ export function renderTotals(totals, players, pointValue) {
   }).join('');
 }
 
-export function renderConfirmedTransactions(balances, players, confirmations = {}, pointValue) {
+export function renderConfirmedTransactions(players, confirmations = {}, allSettled = false) {
   const section = document.getElementById('section-confirmed');
   const container = document.getElementById('confirmed-list');
 
@@ -176,8 +194,8 @@ export function renderConfirmedTransactions(balances, players, confirmations = {
     const fromName = players[t.from]?.name || t.from;
     const toName = players[t.to]?.name || t.to;
     const date = t.confirmedAt ? new Date(t.confirmedAt).toLocaleDateString('sv-SE') : '';
-    const amtDisplay = pointValue
-      ? Math.abs(Math.round((t.amount / 100) * pointValue)) + ' kr'
+    const amtDisplay = t.amountKr != null
+      ? Math.abs(Math.round(t.amountKr / 100)) + ' kr'
       : Math.abs(t.amount / 100) + ' p';
     return `
       <div class="settlement-item settlement-confirmed">
@@ -186,10 +204,21 @@ export function renderConfirmedTransactions(balances, players, confirmations = {
         <span class="settlement-to">${escHtml(toName)}</span>
         <span class="settlement-amount">${amtDisplay}</span>
         <span class="confirmed-date">${date}</span>
-        <button class="btn-unconfirm-tx" data-from="${t.from}" data-to="${t.to}" data-amount="${t.amount}" title="Ångra">✕</button>
+        <button class="btn-unconfirm-tx" data-from="${t.from}" data-to="${t.to}" data-amount="${t.amount}" data-amount-kr="${t.amountKr ?? 0}" title="Ångra">✕</button>
       </div>
     `;
   }).join('');
+
+  const existing = section.querySelector('.btn-clear-book');
+  if (allSettled && !existing) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-clear-book';
+    btn.id = 'btn-clear-book';
+    btn.textContent = 'Stäng boken';
+    section.appendChild(btn);
+  } else if (!allSettled && existing) {
+    existing.remove();
+  }
 }
 
 // ===== ACTIVE SESSION PREVIEW =====
@@ -332,8 +361,8 @@ export function renderSessionDetail(session, entries, players) {
 
   const storedPointValue = session._storedPointValue || session.pointValue || null;
 
-  // Återställ mode till 'kr' varje gång en ny session öppnas
-  detailUnitMode = 'kr';
+  // Återställ mode till 'p' varje gång en ny session öppnas
+  detailUnitMode = 'p';
 
   const effectivePointValue = storedPointValue && detailUnitMode === 'kr' ? storedPointValue : null;
   renderSessionDetailBody(session, entries, players, effectivePointValue, storedPointValue);
@@ -588,7 +617,7 @@ export function renderSessionPlayerSelect(players, selectedIds) {
 
 // ===== CLOSED SESSIONS ON DASHBOARD =====
 
-export function renderClosedSessionsOnDashboard(sessions, players, entries) {
+export function renderClosedSessionsOnDashboard(sessions, players, entries, showKr) {
   const container = document.getElementById('closed-sessions-list');
   const section = document.getElementById('section-closed-sessions');
   if (!container) return;
@@ -625,7 +654,9 @@ export function renderClosedSessionsOnDashboard(sessions, players, entries) {
       .map(pid => {
         const p = players[pid];
         const val = totals[pid] || 0;
-        const display = formatPoints(val, pointValue);
+        const display = showKr && pointValue
+          ? Math.round((val / 100) * pointValue) + ' kr'
+          : formatPoints(val, null);
         const cls = val > 0 ? 'positive' : val < 0 ? 'negative' : '';
         return `<span class="history-total-chip ${cls}">
           <span class="history-total-dot" style="background:${p.color}"></span>

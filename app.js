@@ -7,7 +7,7 @@ import {
   createSession, getMeta, deletePlayer, reopenSession, deleteSession,
   confirmTransaction, unconfirmTransaction, listenConfirmations,
   clearBook, deleteGroup, updateSessionPointValue, updateSessionMeta,
-  listenTotals, recalcTotals
+  listenTotals, recalcTotals, listenHistory
 } from './modules/firebase.js';
 import {
   showScreen, showToast,
@@ -34,6 +34,7 @@ const state = {
   sessions: {},
   balances: {},
   totals: {},
+  history: {},
   entries: {},
   confirmations: {},
   activeSessionId: null,
@@ -234,8 +235,15 @@ async function connectToGroup() {
     listenTotals(groupCode, totals => {
       state.totals = totals || {};
       onTotalsUpdate();
+    }),
+    listenHistory(groupCode, history => {
+      state.history = history || {};
+      onHistoryUpdate();
     })
   );
+
+  // Kör recalcTotals för att säkerställa att history och totals är synkade
+  recalcTotals(groupCode).catch(() => {});
 
   showScreen('dashboard');
   document.getElementById('bottom-nav').classList.remove('hidden');
@@ -260,9 +268,7 @@ async function connectToGroup() {
 // ===== REACTIVE UPDATES =====
 
 function onPlayersUpdate() {
-  const pointValue = getActivePointValue();
-  renderBalances(state.balances, state.players, state.playerId, pointValue);
-  renderSettlements(state.balances, state.players, state.confirmations, getActivePointValueForSettlement());
+  renderDashboard();
   renderGroupPlayers(state.players, state.playerId);
   if (state.activeSessionId && state.sessions[state.activeSessionId]) {
     const session = state.sessions[state.activeSessionId];
@@ -275,7 +281,7 @@ function onSessionsUpdate() {
   state.activeSessionId = active ? active[0] : null;
 
   renderActiveSessionPreview(state.sessions, state.players);
-  renderClosedSessionsOnDashboard(state.sessions, state.players, state.entries);
+  renderClosedSessionsOnDashboard(state.sessions, state.players, state.entries, getDashboardShowKr());
   renderHistory(state.sessions, state.players, state.entries);
   renderStats(state.sessions, state.players, state.entries);
 
@@ -305,50 +311,65 @@ function getActivePointValueForSettlement() {
   return s?.pointValue || s?._storedPointValue || null;
 }
 
+function getDashboardShowKr() {
+  return (localStorage.getItem('dashboardUnit') ?? 'kr') === 'kr';
+}
+
+function updateDashboardUnitToggle() {
+  const btn = document.getElementById('btn-unit-toggle-dashboard');
+  if (!btn) return;
+  const showKr = getDashboardShowKr();
+  btn.textContent = showKr ? 'kr' : 'p';
+  btn.title = showKr ? 'Visa i poäng' : 'Visa i kr';
+  btn.style.opacity = '';
+  btn.style.cursor = '';
+}
+
+function renderDashboard() {
+  const showKr = getDashboardShowKr();
+  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
+  renderSettlements(state.totals, state.players, state.confirmations);
+  renderConfirmedTransactions(state.players, state.confirmations, isAllSettled());
+  renderTotals(state.history, state.players, true, state.sessions);
+  renderClosedSessionsOnDashboard(state.sessions, state.players, state.entries, showKr);
+  updateDashboardUnitToggle();
+}
+
 function onBalancesUpdate() {
-  const pointValue = getActivePointValue();
-  const settlementPV = getActivePointValueForSettlement();
-  renderBalances(state.balances, state.players, state.playerId, pointValue);
-  renderSettlements(state.balances, state.players, state.confirmations, settlementPV);
-  renderConfirmedTransactions(state.balances, state.players, state.confirmations, settlementPV);
+  const showKr = getDashboardShowKr();
+  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
 }
 
 function onConfirmationsUpdate() {
-  const settlementPV = getActivePointValueForSettlement();
-  renderSettlements(state.balances, state.players, state.confirmations, settlementPV);
-  renderConfirmedTransactions(state.balances, state.players, state.confirmations, settlementPV);
-  checkAllSettled();
+  renderSettlements(state.totals, state.players, state.confirmations);
+  renderConfirmedTransactions(state.players, state.confirmations, isAllSettled());
 }
 
 function onTotalsUpdate() {
-  const settlementPV = getActivePointValueForSettlement();
-  renderTotals(state.totals, state.players, settlementPV);
+  const showKr = getDashboardShowKr();
+  renderSettlements(state.totals, state.players, state.confirmations);
+  renderConfirmedTransactions(state.players, state.confirmations, isAllSettled());
+  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
 }
 
-function checkAllSettled() {
-  if (!state.players || Object.keys(state.players).length === 0) return;
+function onHistoryUpdate() {
+  const showKr = getDashboardShowKr();
+  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
+  renderTotals(state.history, state.players, true, state.sessions);
+}
 
-  const netMap = {};
+function isAllSettled() {
+  if (!state.players || Object.keys(state.players).length === 0) return false;
+  const krMap = {};
   Object.keys(state.players).forEach(id => {
-    netMap[id] = state.balances[id]?.net || 0;
+    krMap[id] = Math.round((state.totals[id]?.krNet || 0) / 100);
   });
-
-  const allNetsZero = Object.values(netMap).every(v => v === 0);
-  if (allNetsZero) return;
-
+  const allZero = Object.values(krMap).every(v => v === 0);
+  if (allZero) return false;
   const confirmedKeys = new Set(Object.keys(state.confirmations));
-
-  // Inline minimizePayments to avoid dynamic import
-  const transactions = minimizePaymentsLocal(netMap);
+  const transactions = minimizePaymentsLocal(krMap);
   const pending = transactions.filter(t => !confirmedKeys.has(`${t.from}_${t.to}_${t.amount}`));
-
-  if (pending.length === 0 && transactions.length > 0) {
-    setTimeout(() => {
-      if (confirm('Alla uppgörelser är bekräftade! Vill du stänga boken och nollställa saldona?')) {
-        handleClearBook();
-      }
-    }, 400);
-  }
+  return pending.length === 0 && transactions.length > 0;
 }
 
 function minimizePaymentsLocal(netMap) {
@@ -378,7 +399,7 @@ async function handleClearBook() {
 function onEntriesUpdate() {
   renderSessionRounds();
   renderHistory(state.sessions, state.players, state.entries);
-  renderClosedSessionsOnDashboard(state.sessions, state.players, state.entries);
+  renderClosedSessionsOnDashboard(state.sessions, state.players, state.entries, getDashboardShowKr());
   renderStats(state.sessions, state.players, state.entries);
   // Refresh chart if it's open
   const chartModal = document.getElementById('modal-chart');
@@ -513,9 +534,7 @@ function updateQuickSum() {
   const amounts = getQuickAmounts();
   const total = Object.values(amounts).reduce((s, v) => s + v, 0);
   const el = document.getElementById('quick-sum');
-  const pv = getActivePointValue();
-  const unit = pv ? 'kr' : 'p';
-  el.textContent = total === 0 ? `0 ${unit}` : `${total > 0 ? '+' : ''}${total.toFixed(0)} ${unit}`;
+  el.textContent = total === 0 ? `0 p` : `${total > 0 ? '+' : ''}${total.toFixed(0)} p`;
   el.className = 'sum-value ' + (total === 0 ? 'zero' : 'nonzero');
 }
 
@@ -674,6 +693,13 @@ function bindEvents() {
     document.getElementById('bottom-nav').classList.add('hidden');
     showScreen('lobby');
     prefillCode();
+  });
+
+  // Dashboard unit toggle (kr/poäng)
+  document.getElementById('btn-unit-toggle-dashboard').addEventListener('click', () => {
+    const current = localStorage.getItem('dashboardUnit') ?? 'kr';
+    localStorage.setItem('dashboardUnit', current === 'kr' ? 'points' : 'kr');
+    renderDashboard();
   });
 
   // Group settings
@@ -868,14 +894,21 @@ function bindEvents() {
   document.getElementById('settlements-list').addEventListener('click', e => {
     const btn = e.target.closest('.btn-confirm-tx');
     if (!btn) return;
-    handleConfirmTransaction(btn.dataset.from, btn.dataset.to, parseInt(btn.dataset.amount));
+    handleConfirmTransaction(btn.dataset.from, btn.dataset.to, parseInt(btn.dataset.amount), parseInt(btn.dataset.amountKr));
   });
 
   // Ångra bekräftad transaktion
   document.getElementById('confirmed-list').addEventListener('click', e => {
     const btn = e.target.closest('.btn-unconfirm-tx');
     if (!btn) return;
-    handleUnconfirmTransaction(btn.dataset.from, btn.dataset.to, parseInt(btn.dataset.amount));
+    handleUnconfirmTransaction(btn.dataset.from, btn.dataset.to, parseInt(btn.dataset.amount), parseInt(btn.dataset.amountKr));
+  });
+
+  // Stäng boken-knapp (visas dynamiskt när alla uppgörelser är bekräftade)
+  document.getElementById('section-confirmed').addEventListener('click', e => {
+    if (e.target.closest('.btn-clear-book')) {
+      handleClearBook();
+    }
   });
 
   // Close modals on overlay click
@@ -1102,21 +1135,21 @@ async function handleCloseSession() {
   showToast('Session stängd');
 }
 
-async function handleConfirmTransaction(from, to, amount) {
+async function handleConfirmTransaction(from, to, amount, amountKr) {
   const fromName = state.players[from]?.name || from;
   const toName = state.players[to]?.name || to;
-  const amountKr = Math.round(amount / 100);
-  if (!confirm(`Har ${fromName} betalat ${toName} ${amountKr} kr?`)) return;
-  await confirmTransaction(state.groupCode, from, to, amount);
+  const displayAmt = Math.abs(Math.round(amountKr / 100)) + ' kr';
+  if (!confirm(`Har ${fromName} betalat ${toName} ${displayAmt}?`)) return;
+  await confirmTransaction(state.groupCode, from, to, amount, amountKr);
   showToast('Transaktion bekräftad');
 }
 
-async function handleUnconfirmTransaction(from, to, amount) {
+async function handleUnconfirmTransaction(from, to, amount, amountKr) {
   const fromName = state.players[from]?.name || from;
   const toName = state.players[to]?.name || to;
-  const amountKr = Math.round(amount / 100);
-  if (!confirm(`Ångra bekräftelsen att ${fromName} betalat ${toName} ${amountKr} kr?`)) return;
-  await unconfirmTransaction(state.groupCode, from, to, amount);
+  const displayAmt = Math.abs(Math.round(amountKr / 100)) + ' kr';
+  if (!confirm(`Ångra bekräftelsen att ${fromName} betalat ${toName} ${displayAmt}?`)) return;
+  await unconfirmTransaction(state.groupCode, from, to, amount, amountKr);
   showToast('Bekräftelse ångrad');
 }
 
@@ -1354,6 +1387,7 @@ async function handleReopenSession(sessionId) {
   }
   if (!confirm('Fortsätta denna session?')) return;
   await reopenSession(state.groupCode, sessionId);
+  state.activeSessionId = sessionId;
   showScreen('session');
   showToast('Session återöppnad');
 }
