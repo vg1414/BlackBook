@@ -705,6 +705,10 @@ function bindEvents() {
     document.querySelectorAll('.chart-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
     document.getElementById('chart-tab-chart').classList.toggle('hidden', name !== 'chart');
     document.getElementById('chart-tab-stats').classList.toggle('hidden', name !== 'stats');
+    // Initiera Chart.js med reveal-animation när diagram-fliken visas
+    if (name === 'chart') {
+      requestAnimationFrame(initChartFromPending);
+    }
   });
   document.getElementById('btn-session-settings').addEventListener('click', openSessionSettingsModal);
   document.getElementById('btn-toggle-unit').addEventListener('click', handleToggleUnit);
@@ -1105,113 +1109,15 @@ async function handleDeleteActiveSession() {
 }
 
 let chartInstance = null;
+let pendingChartData = null; // sparas tills fliken öppnas
 
-function handleOpenChart() {
-  const sessionId = state.activeSessionId;
-  if (!sessionId) { showToast('Ingen aktiv session'); return; }
-
-  const sessionEntries = Object.values(state.entries)
-    .filter(e => e.sessionId === sessionId && !e.deleted)
-    .sort((a, b) => a.timestamp - b.timestamp);
-
-  const session = state.sessions[sessionId];
-  const playerIds = session?.playerIds ? Object.keys(session.playerIds) : [];
-
-  // Build cumulative data per player, one point per "round" (grouped by timestamp proximity)
-  // Each submit call creates entries at roughly the same timestamp – group by < 5s apart
-  const rounds = [];
-  let prevTime = null;
-  for (const e of sessionEntries) {
-    if (prevTime === null || e.timestamp - prevTime > 5000) {
-      rounds.push([]);
-      prevTime = e.timestamp;
-    }
-    rounds[rounds.length - 1].push(e);
-  }
-
-  const pointValue = getActivePointValue(); // kr per poäng, eller null
-  const useKr = !!pointValue;
-  const unitLabel = useKr ? 'kr' : 'p';
-
-  const colors = ['#e05252','#4fc3f7','#66bb6a','#ffd54f','#ba68c8','#ff8a65','#4db6ac','#f06292'];
-  const datasets = playerIds
-    .filter(id => state.players[id])
-    .map((id, i) => {
-      let cumulative = 0;
-      const data = [0]; // starts at 0
-      rounds.forEach(round => {
-        const entry = round.find(e => e.playerId === id);
-        const points = entry ? entry.amount / 100 : 0;
-        cumulative += useKr ? points * pointValue : points;
-        data.push(Math.round(cumulative));
-      });
-      const color = state.players[id].color || colors[i % colors.length];
-      return {
-        label: state.players[id].name,
-        data,
-        borderColor: color,
-        backgroundColor: color + '22',
-        tension: 0.3,
-        pointRadius: 4,
-        fill: false
-      };
-    });
-
-  const labels = ['Start', ...rounds.map((_, i) => `R${i + 1}`)];
-
-  // Beräkna löpande saldo per spelare (för totaler i stats-panelen)
-  const runBal = {};
-  rounds.forEach(round => {
-    round.forEach(e => {
-      runBal[e.playerId] = (runBal[e.playerId] || 0) + e.amount;
-    });
-  });
-
-  // Rendera stats-panelen – samma layout som stängd session-modal
-  const statsContainer = document.getElementById('chart-session-stats');
-  if (statsContainer) {
-    // Totaler per spelare (från runBal som redan är beräknad)
-    const totals = {};
-    playerIds.forEach(id => { totals[id] = runBal[id] || 0; });
-
-    // Spelduration från sessionEntries
-    const firstTs = sessionEntries[0]?.timestamp;
-    const lastTs = sessionEntries[sessionEntries.length - 1]?.timestamp;
-    let durationStr = '–';
-    if (firstTs && lastTs && lastTs > firstTs) {
-      const mins = Math.round((lastTs - firstTs) / 60000);
-      durationStr = mins >= 60
-        ? `${Math.floor(mins / 60)}h ${mins % 60}m`
-        : `${mins} min`;
-    }
-
-    statsContainer.innerHTML = buildSessionStatsHTML(
-      rounds, playerIds, state.players, totals,
-      useKr ? pointValue : null,
-      pointValue || null,
-      durationStr,
-      false
-    );
-
-    // Staggerad animation
-    setTimeout(() => {
-      statsContainer.querySelectorAll('.sd-highlight-card, .sd-player-row, .sd-pstat-row').forEach((el, i) => {
-        el.style.animationDelay = `${i * 60}ms`;
-        el.classList.add('sd-animate-in');
-      });
-    }, 10);
-  }
-
-  openModal('modal-chart');
-
-  // Öppna alltid på stats-fliken
-  document.querySelectorAll('.chart-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'stats'));
-  document.getElementById('chart-tab-chart').classList.add('hidden');
-  document.getElementById('chart-tab-stats').classList.remove('hidden');
+function initChartFromPending() {
+  if (!pendingChartData) return;
+  const { labels, datasets, unitLabel } = pendingChartData;
+  // Behåller pendingChartData så att animationen kan spelas om varje gång fliken öppnas
 
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
-  // Plugin: ritar linjen vänster→höger via canvas clip
   const drawPlugin = {
     id: 'drawReveal',
     beforeDraw(chart) {
@@ -1306,6 +1212,117 @@ function handleOpenChart() {
     if (t < 1) requestAnimationFrame(animate);
   }
   requestAnimationFrame(animate);
+}
+
+function handleOpenChart() {
+  const sessionId = state.activeSessionId;
+  if (!sessionId) { showToast('Ingen aktiv session'); return; }
+
+  const sessionEntries = Object.values(state.entries)
+    .filter(e => e.sessionId === sessionId && !e.deleted)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const session = state.sessions[sessionId];
+  const playerIds = session?.playerIds ? Object.keys(session.playerIds) : [];
+
+  // Build cumulative data per player, one point per "round" (grouped by timestamp proximity)
+  // Each submit call creates entries at roughly the same timestamp – group by < 5s apart
+  const rounds = [];
+  let prevTime = null;
+  for (const e of sessionEntries) {
+    if (prevTime === null || e.timestamp - prevTime > 5000) {
+      rounds.push([]);
+      prevTime = e.timestamp;
+    }
+    rounds[rounds.length - 1].push(e);
+  }
+
+  const pointValue = getActivePointValue(); // kr per poäng, eller null
+  const useKr = !!pointValue;
+  const unitLabel = useKr ? 'kr' : 'p';
+
+  const colors = ['#e05252','#4fc3f7','#66bb6a','#ffd54f','#ba68c8','#ff8a65','#4db6ac','#f06292'];
+  const datasets = playerIds
+    .filter(id => state.players[id])
+    .map((id, i) => {
+      let cumulative = 0;
+      const data = [0]; // starts at 0
+      rounds.forEach(round => {
+        const entry = round.find(e => e.playerId === id);
+        const points = entry ? entry.amount / 100 : 0;
+        cumulative += useKr ? points * pointValue : points;
+        data.push(Math.round(cumulative));
+      });
+      const color = state.players[id].color || colors[i % colors.length];
+      return {
+        label: state.players[id].name,
+        data,
+        borderColor: color,
+        backgroundColor: color + '22',
+        tension: 0.3,
+        pointRadius: 4,
+        fill: false
+      };
+    });
+
+  const labels = ['Start', ...rounds.map((_, i) => `R${i + 1}`)];
+
+  // Beräkna löpande saldo per spelare (för totaler i stats-panelen)
+  const runBal = {};
+  rounds.forEach(round => {
+    round.forEach(e => {
+      runBal[e.playerId] = (runBal[e.playerId] || 0) + e.amount;
+    });
+  });
+
+  // Rendera stats-panelen – samma layout som stängd session-modal
+  const statsContainer = document.getElementById('chart-session-stats');
+  if (statsContainer) {
+    // Totaler per spelare (från runBal som redan är beräknad)
+    const totals = {};
+    playerIds.forEach(id => { totals[id] = runBal[id] || 0; });
+
+    // Spelduration från sessionEntries
+    const firstTs = sessionEntries[0]?.timestamp;
+    const lastTs = sessionEntries[sessionEntries.length - 1]?.timestamp;
+    let durationStr = '–';
+    if (firstTs && lastTs && lastTs > firstTs) {
+      const mins = Math.round((lastTs - firstTs) / 60000);
+      durationStr = mins >= 60
+        ? `${Math.floor(mins / 60)}h ${mins % 60}m`
+        : `${mins} min`;
+    }
+
+    statsContainer.innerHTML = buildSessionStatsHTML(
+      rounds, playerIds, state.players, totals,
+      useKr ? pointValue : null,
+      pointValue || null,
+      durationStr,
+      false
+    );
+
+  }
+
+  // Spara chart-data för lazy-initiering när diagram-fliken öppnas
+  pendingChartData = { labels, datasets, unitLabel };
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+  openModal('modal-chart');
+
+  // Öppna alltid på stats-fliken
+  document.querySelectorAll('.chart-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'stats'));
+  document.getElementById('chart-tab-chart').classList.add('hidden');
+  document.getElementById('chart-tab-stats').classList.remove('hidden');
+
+  // Staggerad animation för stats-element (körs efter modalen är synlig)
+  if (statsContainer) {
+    setTimeout(() => {
+      statsContainer.querySelectorAll('.sd-highlight-card, .sd-player-row, .sd-pstat-row').forEach((el, i) => {
+        el.style.animationDelay = `${i * 60}ms`;
+        el.classList.add('sd-animate-in');
+      });
+    }, 80);
+  }
 }
 
 async function handleReopenSession(sessionId) {
