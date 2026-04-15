@@ -172,7 +172,14 @@ function renderSavedGroups() {
       state.groupCode = saved.groupCode;
       state.playerId = saved.playerId;
       state.playerName = saved.playerName;
-      saveGroup(saved.groupCode, saved.playerId, saved.playerName, saved.createdAt);
+      // Hämta gruppnamn från Firebase om det saknas lokalt
+      if (!saved.groupName) {
+        const meta = await getMeta(saved.groupCode);
+        const fetchedName = meta?.name && meta.name !== saved.groupCode ? meta.name : null;
+        saveGroup(saved.groupCode, saved.playerId, saved.playerName, saved.createdAt, fetchedName);
+      } else {
+        saveGroup(saved.groupCode, saved.playerId, saved.playerName, saved.createdAt);
+      }
       await connectToGroup();
       showToast(`Välkommen tillbaka, ${saved.playerName}!`);
     });
@@ -226,6 +233,21 @@ async function connectToGroup() {
   showScreen('dashboard');
   document.getElementById('bottom-nav').classList.remove('hidden');
   document.getElementById('display-group-code').textContent = groupCode;
+
+  // Visa gruppnamn i dashboard-headern
+  const savedGroup = getAllSavedGroups().find(g => g.groupCode === groupCode);
+  const nameEl = document.getElementById('dashboard-group-name');
+  if (nameEl) {
+    const displayName = savedGroup?.groupName && savedGroup.groupName !== groupCode
+      ? savedGroup.groupName : null;
+    if (displayName) {
+      nameEl.textContent = displayName;
+      nameEl.classList.add('header-title-group');
+    } else {
+      nameEl.textContent = 'Black Book';
+      nameEl.classList.remove('header-title-group');
+    }
+  }
 }
 
 // ===== REACTIVE UPDATES =====
@@ -260,6 +282,7 @@ function onSessionsUpdate() {
   onBalancesUpdate();
   renderSessionRounds();
   updateUnitToggleBtn(true);
+  updateQuickSum();
 }
 
 function getActivePointValue() {
@@ -478,7 +501,9 @@ function updateQuickSum() {
   const amounts = getQuickAmounts();
   const total = Object.values(amounts).reduce((s, v) => s + v, 0);
   const el = document.getElementById('quick-sum');
-  el.textContent = total === 0 ? '0 kr' : `${total > 0 ? '+' : ''}${total.toFixed(0)} kr`;
+  const pv = getActivePointValue();
+  const unit = pv ? 'kr' : 'p';
+  el.textContent = total === 0 ? `0 ${unit}` : `${total > 0 ? '+' : ''}${total.toFixed(0)} ${unit}`;
   el.className = 'sum-value ' + (total === 0 ? 'zero' : 'nonzero');
 }
 
@@ -670,6 +695,16 @@ function bindEvents() {
   document.getElementById('btn-close-session').addEventListener('click', handleCloseSession);
   document.getElementById('btn-session-chart').addEventListener('click', handleOpenChart);
   document.getElementById('btn-close-chart-x').addEventListener('click', () => closeModal('modal-chart'));
+
+  // Flik-switching i diagram-modalen
+  document.getElementById('modal-chart').addEventListener('click', e => {
+    const tab = e.target.closest('.chart-tab');
+    if (!tab) return;
+    const name = tab.dataset.tab;
+    document.querySelectorAll('.chart-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.getElementById('chart-tab-chart').classList.toggle('hidden', name !== 'chart');
+    document.getElementById('chart-tab-stats').classList.toggle('hidden', name !== 'stats');
+  });
   document.getElementById('btn-session-settings').addEventListener('click', openSessionSettingsModal);
   document.getElementById('btn-toggle-unit').addEventListener('click', handleToggleUnit);
   document.getElementById('btn-close-session-settings-x').addEventListener('click', () => closeModal('modal-session-settings'));
@@ -686,8 +721,53 @@ function bindEvents() {
     }
   });
 
-  document.getElementById('quick-players-list').addEventListener('input', e => {
-    if (e.target.classList.contains('amount-input')) updateQuickSum();
+  const quickList = document.getElementById('quick-players-list');
+
+  quickList.addEventListener('input', e => {
+    if (!e.target.classList.contains('amount-input')) return;
+    updateQuickSum();
+    const id = e.target.dataset.playerId;
+    const btn = quickList.querySelector(`.btn-sign-toggle[data-player-id="${id}"]`);
+    const raw = parseFloat(e.target.value);
+    const absVal = Math.abs(raw) || 0;
+
+    // Om pendingSign är satt (användaren tryckte − när fältet var tomt) och nu börjar skriva
+    if (!isNaN(raw) && absVal > 0 && e.target.dataset.pendingSign === 'negative') {
+      // Tvinga värdet negativt
+      if (raw > 0) e.target.value = String(-raw);
+      delete e.target.dataset.pendingSign;
+    }
+
+    // Synka knappens tecken och inputfärg baserat på faktiskt värde
+    const finalVal = parseFloat(e.target.value) || 0;
+    if (btn) btn.textContent = finalVal < 0 ? '−' : '+';
+    e.target.style.color = finalVal < 0 ? '#e74c3c' : '';
+  });
+
+  quickList.addEventListener('click', e => {
+    const btn = e.target.closest('.btn-sign-toggle');
+    if (!btn) return;
+    const id = btn.dataset.playerId;
+    const input = quickList.querySelector(`.amount-input[data-player-id="${id}"]`);
+    if (!input) return;
+    const val = parseFloat(input.value) || 0;
+    if (val === 0) {
+      // Tomt fält – sätt pendingSign så att nästa inmatning får rätt tecken
+      const newSign = btn.textContent === '+' ? 'negative' : 'positive';
+      btn.textContent = newSign === 'negative' ? '−' : '+';
+      if (newSign === 'negative') {
+        input.dataset.pendingSign = 'negative';
+      } else {
+        delete input.dataset.pendingSign;
+      }
+    } else {
+      const newVal = -val;
+      input.value = String(newVal);
+      btn.textContent = newVal > 0 ? '+' : '−';
+      input.style.color = newVal < 0 ? '#e74c3c' : '';
+      delete input.dataset.pendingSign;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   });
 
 
@@ -873,7 +953,8 @@ async function handleJoin() {
   state.playerId = playerId;
   state.playerName = playerName;
   const joinMeta = await getMeta(code);
-  saveGroup(code, playerId, playerName, joinMeta?.createdAt ?? null);
+  const joinGroupName = joinMeta?.name && joinMeta.name !== code ? joinMeta.name : null;
+  saveGroup(code, playerId, playerName, joinMeta?.createdAt ?? null, joinGroupName);
   await connectToGroup();
   showToast(`Välkommen, ${playerName}!`);
 }
@@ -1077,7 +1158,83 @@ function handleOpenChart() {
 
   const labels = ['Start', ...rounds.map((_, i) => `R${i + 1}`)];
 
+  // === Beräkna session-stats (topp/botten per spelare) ===
+  const sessionStats = {};
+  playerIds.filter(id => state.players[id]).forEach(id => {
+    sessionStats[id] = { peak: null, lowest: null, total: 0, roundCount: 0 };
+  });
+  const runBal = {};
+  rounds.forEach(round => {
+    round.forEach(e => {
+      if (!sessionStats[e.playerId]) return;
+      runBal[e.playerId] = (runBal[e.playerId] || 0) + e.amount;
+      const bal = runBal[e.playerId];
+      const s = sessionStats[e.playerId];
+      if (s.peak === null || bal > s.peak) s.peak = bal;
+      if (s.lowest === null || bal < s.lowest) s.lowest = bal;
+    });
+    // Räkna runda om minst en spelare hade en entry
+    if (round.length > 0) {
+      playerIds.forEach(id => {
+        if (sessionStats[id]) sessionStats[id].roundCount++;
+      });
+    }
+  });
+  playerIds.forEach(id => {
+    if (sessionStats[id]) sessionStats[id].total = runBal[id] || 0;
+  });
+
+  // Rendera stats-panelen
+  const statsContainer = document.getElementById('chart-session-stats');
+  if (statsContainer) {
+    const fmt = (v, unit) => {
+      if (v === null) return '–';
+      const rounded = Math.round(useKr ? v / 100 * pointValue : v / 100);
+      return (rounded > 0 ? '+' : '') + rounded + ' ' + unit;
+    };
+    const activePlayers = playerIds.filter(id => state.players[id]);
+    statsContainer.innerHTML = `
+      <p class="chart-stats-section-title">Denna session · ${rounds.length} rundor</p>
+      <div class="chart-stats-grid">
+        ${activePlayers.map(id => {
+          const p = state.players[id];
+          const s = sessionStats[id];
+          const totalVal = fmt(s.total * 1, unitLabel);
+          const peakVal = s.peak !== null && s.peak > 0 ? fmt(s.peak, unitLabel) : '–';
+          const lowVal = s.lowest !== null && s.lowest < 0 ? fmt(s.lowest, unitLabel) : '–';
+          const totalClass = s.total > 0 ? 'positive' : s.total < 0 ? 'negative' : '';
+          return `
+            <div class="chart-stats-player">
+              <div class="chart-stats-player-header">
+                <div class="player-avatar" style="background:${p.color}20;color:${p.color};width:24px;height:24px;min-width:24px;font-size:11px">${p.name.charAt(0)}</div>
+                <span class="chart-stats-player-name">${p.name}</span>
+              </div>
+              <div class="chart-stat-row">
+                <span class="chart-stat-row-label">Totalt</span>
+                <span class="chart-stat-row-value ${totalClass}">${totalVal}</span>
+              </div>
+              <div class="chart-stats-divider"></div>
+              <div class="chart-stat-row">
+                <span class="chart-stat-row-label">▲ Topp</span>
+                <span class="chart-stat-row-value positive">${peakVal}</span>
+              </div>
+              <div class="chart-stat-row">
+                <span class="chart-stat-row-label">▼ Botten</span>
+                <span class="chart-stat-row-value negative">${lowVal}</span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
   openModal('modal-chart');
+
+  // Återställ alltid till diagram-fliken vid öppning
+  document.querySelectorAll('.chart-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'chart'));
+  document.getElementById('chart-tab-chart').classList.remove('hidden');
+  document.getElementById('chart-tab-stats').classList.add('hidden');
 
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
@@ -1220,7 +1377,12 @@ async function handleQuickSubmit() {
 
   try {
     await submitQuickResults(state.groupCode, state.activeSessionId, amounts);
-    document.querySelectorAll('#quick-players-list .amount-input').forEach(i => i.value = '');
+    document.querySelectorAll('#quick-players-list .amount-input').forEach(i => {
+      i.value = '';
+      i.style.color = '';
+      delete i.dataset.pendingSign;
+    });
+    document.querySelectorAll('#quick-players-list .btn-sign-toggle').forEach(b => b.textContent = '+');
     updateQuickSum();
     showToast('Resultat registrerat!');
   } catch (err) {

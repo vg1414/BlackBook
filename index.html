@@ -64,7 +64,7 @@
     <div id="screen-dashboard" class="screen">
       <header class="app-header">
         <button id="btn-go-lobby" class="btn-icon">⌂</button>
-        <h1 class="header-title">Black Book</h1>
+        <h1 class="header-title" id="dashboard-group-name">Black Book</h1>
         <button id="btn-group-settings" class="btn-icon">⚙</button>
       </header>
 
@@ -299,9 +299,17 @@
   <div id="modal-chart" class="modal-overlay hidden">
     <div class="modal modal-chart">
       <button class="modal-close-btn" id="btn-close-chart-x">✕</button>
-      <h2>Diagram</h2>
-      <div class="chart-container">
-        <canvas id="session-chart"></canvas>
+      <div class="chart-modal-tabs">
+        <button class="chart-tab active" data-tab="chart">Diagram</button>
+        <button class="chart-tab" data-tab="stats">Stats</button>
+      </div>
+      <div class="chart-tab-panel" id="chart-tab-chart">
+        <div class="chart-container">
+          <canvas id="session-chart"></canvas>
+        </div>
+      </div>
+      <div class="chart-tab-panel hidden" id="chart-tab-stats">
+        <div id="chart-session-stats"></div>
       </div>
     </div>
   </div>

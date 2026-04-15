@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-15 (uppdatering 28)
+- Feature: diagram-modalen har nu två flikar – Diagram och Stats
+- Stats-fliken visar totalt saldo, topp och botten per spelare för aktiv session
+
 ## 2026-04-15 (uppdatering 27)
 - Fix: scrollning i session-skärmen fungerar nu på mobil (touch-action: pan-y på scroll-area)
 - Fix: scrollning i övriga skärmar (Saldo, Historik, Statistik) fick samma fix
