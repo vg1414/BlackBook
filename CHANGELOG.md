@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-16 (uppdatering 41)
+- Hotfix: återställ transaktionshistorik-funktionalitet (getTransactionHistory, renderTxHistory, handleOpenTxHistory) som felaktigt togs bort i uppdatering 40
+
 ## 2026-04-16 (uppdatering 40)
 - Hotfix: appen kraschade (kunde inte gå med i grupp) p.g.a. importer av funktioner som inte existerar (getTransactionHistory, renderTxHistory) – borttagna
 
