@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-04-16 (uppdatering 39)
+- Fix: "Stäng boken"-dialogen visas nu på mobil också när alla transaktioner är bekräftade (race condition med Firebase-lyssnare åtgärdad)
+
+## 2026-04-16 (uppdatering 38)
+- Fix: dashboarden startar nu alltid i poäng-läge ("p") på alla enheter – tidigare defaultade den till "kr" om inget var sparat
+- Fix: borttagen debug-loggning ([recalc]) i firebase.js
+
 ## 2026-04-16 (uppdatering 37)
 - Fix: "Alla skulder uppgjorda"-dialogen centreras nu korrekt på skärmen (horisontellt och vertikalt) istället för att hamna nere till vänster
 

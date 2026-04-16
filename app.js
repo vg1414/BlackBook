@@ -7,7 +7,7 @@ import {
   createSession, getMeta, deletePlayer, reopenSession, deleteSession,
   confirmTransaction, unconfirmTransaction, listenConfirmations,
   clearBook, deleteGroup, updateSessionPointValue, updateSessionMeta,
-  listenTotals, recalcTotals, listenHistory
+  listenTotals, recalcTotals, listenHistory, getTransactionHistory
 } from './modules/firebase.js';
 import {
   showScreen, showToast,
@@ -15,7 +15,7 @@ import {
   renderActiveSessionPreview, renderClosedSessionsOnDashboard,
   renderQuickMode, renderHistory, renderSessionDetail,
   renderGroupPlayers, renderSessionPlayerSelect, renderStats,
-  buildSessionStatsHTML, renderTotals
+  buildSessionStatsHTML, renderTotals, renderTxHistory
 } from './modules/ui.js';
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
@@ -312,7 +312,7 @@ function getActivePointValueForSettlement() {
 }
 
 function getDashboardShowKr() {
-  return (localStorage.getItem('dashboardUnit') ?? 'kr') === 'kr';
+  return (localStorage.getItem('dashboardUnit') ?? 'p') === 'kr';
 }
 
 function updateDashboardUnitToggle() {
@@ -329,7 +329,7 @@ function renderDashboard() {
   const showKr = getDashboardShowKr();
   renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
   renderSettlements(state.totals, state.players, state.confirmations);
-  renderConfirmedTransactions(state.players, state.confirmations, isAllSettled());
+  renderConfirmedTransactions(state.players, state.confirmations);
   renderTotals(state.history, state.players, true, state.sessions);
   renderClosedSessionsOnDashboard(state.sessions, state.players, state.entries, showKr);
   updateDashboardUnitToggle();
@@ -342,14 +342,16 @@ function onBalancesUpdate() {
 
 function onConfirmationsUpdate() {
   renderSettlements(state.totals, state.players, state.confirmations);
-  renderConfirmedTransactions(state.players, state.confirmations, isAllSettled());
+  renderConfirmedTransactions(state.players, state.confirmations);
+  if (isAllSettled()) showCloseBookDialog();
 }
 
 function onTotalsUpdate() {
   const showKr = getDashboardShowKr();
   renderSettlements(state.totals, state.players, state.confirmations);
-  renderConfirmedTransactions(state.players, state.confirmations, isAllSettled());
+  renderConfirmedTransactions(state.players, state.confirmations);
   renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
+  if (isAllSettled()) showCloseBookDialog();
 }
 
 function onHistoryUpdate() {
@@ -391,9 +393,22 @@ function minimizePaymentsLocal(netMap) {
   return transactions;
 }
 
+function showCloseBookDialog() {
+  const modal = document.getElementById('modal-close-book');
+  if (!modal || !modal.classList.contains('hidden')) return; // redan öppen
+  openModal('modal-close-book');
+}
+
 async function handleClearBook() {
+  closeModal('modal-close-book');
   await clearBook(state.groupCode);
   showToast('Boken stängd!');
+}
+
+async function handleOpenTxHistory() {
+  const txHistory = await getTransactionHistory(state.groupCode);
+  renderTxHistory(txHistory, state.players);
+  openModal('modal-tx-history');
 }
 
 function onEntriesUpdate() {
@@ -855,13 +870,26 @@ function bindEvents() {
 
   document.getElementById('btn-close-detail-x').addEventListener('click', () => closeModal('modal-session-detail'));
 
+  // Radera session från session-detail-modalen
+  document.getElementById('btn-delete-session-detail').addEventListener('click', e => {
+    const sessionId = e.currentTarget.dataset.sessionId;
+    if (!sessionId) return;
+    handleDeleteSession(sessionId);
+  });
+
   // Active session preview click → go to session
   document.getElementById('active-session-preview').addEventListener('click', () => {
     if (state.activeSessionId) showScreen('session');
   });
 
-  // Closed sessions on dashboard → open detail modal
+  // Closed sessions on dashboard → open detail modal (eller radera via ✕)
   document.getElementById('closed-sessions-list').addEventListener('click', e => {
+    const delBtn = e.target.closest('.closed-session-delete');
+    if (delBtn) {
+      e.stopPropagation();
+      handleDeleteSession(delBtn.dataset.deleteSessionId);
+      return;
+    }
     const item = e.target.closest('.closed-session-item');
     if (!item) return;
     const sessionId = item.dataset.sessionId;
@@ -904,12 +932,13 @@ function bindEvents() {
     handleUnconfirmTransaction(btn.dataset.from, btn.dataset.to, parseInt(btn.dataset.amount), parseInt(btn.dataset.amountKr));
   });
 
-  // Stäng boken-knapp (visas dynamiskt när alla uppgörelser är bekräftade)
-  document.getElementById('section-confirmed').addEventListener('click', e => {
-    if (e.target.closest('.btn-clear-book')) {
-      handleClearBook();
-    }
-  });
+  // Stäng boken-dialog
+  document.getElementById('btn-confirm-close-book').addEventListener('click', handleClearBook);
+  document.getElementById('btn-cancel-close-book').addEventListener('click', () => closeModal('modal-close-book'));
+
+  // Transaktionshistorik
+  document.getElementById('btn-tx-history').addEventListener('click', handleOpenTxHistory);
+  document.getElementById('btn-close-tx-history-x').addEventListener('click', () => closeModal('modal-tx-history'));
 
   // Close modals on overlay click
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -1080,6 +1109,7 @@ function openNewSessionModal() {
   state.newSessionSelectedPlayers = Object.keys(state.players);
   renderSessionPlayerSelect(state.players, state.newSessionSelectedPlayers);
   document.getElementById('input-session-name').value = '';
+  document.getElementById('input-point-value').value = '';
 
   // Player selection toggle
   document.querySelectorAll('.player-checkbox-btn').forEach(btn => {
@@ -1114,15 +1144,24 @@ async function handleStartSession() {
     return;
   }
 
+  // Sessionen startar alltid i poäng-läge. Om användaren angett ett poängvärde
+  // sparas det i _storedPointValue så att toggle-knappen kan växla till kr.
   const sessionId = await createSession(state.groupCode, {
     type: 'quick',
     name,
-    pointValue,
+    pointValue: null,
     playerIds: state.newSessionSelectedPlayers
   });
+  if (pointValue) {
+    await updateSessionMeta(state.groupCode, sessionId, { _storedPointValue: pointValue });
+  }
+
+  state.activeSessionId = sessionId;
+  state.sessions[sessionId] = { pointValue: null, _storedPointValue: pointValue || null };
 
   closeNewSessionModal();
   showScreen('session');
+  updateUnitToggleBtn();
   showToast('Session startad!');
 }
 
@@ -1398,6 +1437,7 @@ async function handleDeleteSession(sessionId) {
   if (!confirm(`Radera "${label}"? Detta går inte att ångra.`)) return;
   await deleteSession(state.groupCode, sessionId);
   await recalcTotals(state.groupCode);
+  closeModal('modal-session-detail');
   showToast('Session raderad');
 }
 

@@ -306,10 +306,29 @@ export async function clearBook(groupCode) {
   Object.keys(players).forEach(pid => {
     if (!players[pid].deleted) zeroedBalances[pid] = { net: 0 };
   });
+
+  // Flytta bekräftade transaktioner till permanent historik innan de rensas
+  const confSnap = await get(ref(db, `groups/${groupCode}/confirmations`));
+  if (confSnap.exists()) {
+    const confirmations = confSnap.val();
+    const histRef = ref(db, `groups/${groupCode}/transactionHistory`);
+    const updates = {};
+    Object.values(confirmations).forEach(tx => {
+      const newKey = push(histRef).key;
+      updates[newKey] = { ...tx, archivedAt: Date.now() };
+    });
+    await update(histRef, updates);
+  }
+
   await set(ref(db, `groups/${groupCode}/totals`), zeroed);
   // history (Gruppens totaler) nollställs aldrig – det är permanent ackumulerad historik
   await set(ref(db, `groups/${groupCode}/balances`), zeroedBalances);
   await set(ref(db, `groups/${groupCode}/confirmations`), null);
+}
+
+export async function getTransactionHistory(groupCode) {
+  const snap = await get(ref(db, `groups/${groupCode}/transactionHistory`));
+  return snap.exists() ? snap.val() : {};
 }
 
 // ===== TOTALS =====
@@ -355,7 +374,6 @@ export async function recalcTotals(groupCode) {
       // krNet: poäng × kr/poäng för den sessionen. Sessioner utan pointValue bidrar 0 kr.
       const sess = closedSessions[e.sessionId];
       const pv = sess?.pointValue || sess?._storedPointValue || 0;
-      console.log(`[recalc] session=${e.sessionId} pointValue=${sess?.pointValue} _stored=${sess?._storedPointValue} pv=${pv} amount=${e.amount}`);
       totals[e.playerId].krNet += Math.round((e.amount / 100) * pv * 100); // lagras i öre
     }
   });
