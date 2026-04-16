@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-16 (uppdatering 45)
+- Boken stängs nu automatiskt när alla transaktioner är bekräftade – alla spelare ser en informationsruta med OK-knapp (ingen funktionell knapp behövs längre)
+
 ## 2026-04-16 (uppdatering 44)
 - Fix: stängningsdialogen ("Stäng boken") visas nu bara på enheten som bekräftade sista transaktionen – inte hos alla anslutna spelare
 

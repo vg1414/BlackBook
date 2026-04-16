@@ -39,8 +39,7 @@ const state = {
   confirmations: {},
   activeSessionId: null,
   unsubscribers: [],
-  newSessionSelectedPlayers: [],
-  _locallyTriggeredClose: false
+  newSessionSelectedPlayers: []
 };
 
 // ===== INIT =====
@@ -341,10 +340,16 @@ function onBalancesUpdate() {
   renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
 }
 
-function onConfirmationsUpdate() {
+let _clearingBook = false;
+async function onConfirmationsUpdate() {
   renderSettlements(state.totals, state.players, state.confirmations);
   renderConfirmedTransactions(state.players, state.confirmations);
-  if (isAllSettled()) showCloseBookDialog();
+  if (isAllSettled() && !_clearingBook) {
+    _clearingBook = true;
+    await clearBook(state.groupCode);
+    _clearingBook = false;
+    showCloseBookDialog();
+  }
 }
 
 function onTotalsUpdate() {
@@ -394,17 +399,13 @@ function minimizePaymentsLocal(netMap) {
 }
 
 function showCloseBookDialog() {
-  if (!state._locallyTriggeredClose) return; // visa bara för den som bekräftade sista transaktionen
-  state._locallyTriggeredClose = false;
   const modal = document.getElementById('modal-close-book');
   if (!modal || !modal.classList.contains('hidden')) return; // redan öppen
   openModal('modal-close-book');
 }
 
-async function handleClearBook() {
+function handleCloseBookOk() {
   closeModal('modal-close-book');
-  await clearBook(state.groupCode);
-  showToast('Boken stängd!');
 }
 
 async function handleOpenTxHistory() {
@@ -934,9 +935,8 @@ function bindEvents() {
     handleUnconfirmTransaction(btn.dataset.from, btn.dataset.to, parseInt(btn.dataset.amount), parseInt(btn.dataset.amountKr));
   });
 
-  // Stäng boken-dialog
-  document.getElementById('btn-confirm-close-book').addEventListener('click', handleClearBook);
-  document.getElementById('btn-cancel-close-book').addEventListener('click', () => closeModal('modal-close-book'));
+  // Stäng boken-dialog (OK stänger bara modalen – boken stängs automatiskt)
+  document.getElementById('btn-confirm-close-book').addEventListener('click', handleCloseBookOk);
 
   // Transaktionshistorik
   document.getElementById('btn-tx-history').addEventListener('click', handleOpenTxHistory);
@@ -1181,7 +1181,6 @@ async function handleConfirmTransaction(from, to, amount, amountKr) {
   const toName = state.players[to]?.name || to;
   const displayAmt = Math.abs(Math.round(amountKr / 100)) + ' kr';
   if (!confirm(`Har ${fromName} betalat ${toName} ${displayAmt}?`)) return;
-  state._locallyTriggeredClose = true;
   await confirmTransaction(state.groupCode, from, to, amount, amountKr);
   showToast('Transaktion bekräftad');
 }
