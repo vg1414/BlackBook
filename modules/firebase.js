@@ -349,14 +349,16 @@ export function listenTotals(groupCode, callback) {
 
 export async function recalcTotals(groupCode) {
   // Räkna om totals från scratch – bara entries från stängda sessioner
-  const [entriesSnap, playersSnap, sessionsSnap] = await Promise.all([
+  const [entriesSnap, playersSnap, sessionsSnap, confSnap] = await Promise.all([
     get(ref(db, `groups/${groupCode}/entries`)),
     get(ref(db, `groups/${groupCode}/players`)),
-    get(ref(db, `groups/${groupCode}/sessions`))
+    get(ref(db, `groups/${groupCode}/sessions`)),
+    get(ref(db, `groups/${groupCode}/confirmations`))
   ]);
   const entries = entriesSnap.exists() ? entriesSnap.val() : {};
   const players = playersSnap.exists() ? playersSnap.val() : {};
   const sessions = sessionsSnap.exists() ? sessionsSnap.val() : {};
+  const confirmations = confSnap.exists() ? confSnap.val() : {};
 
   const closedSessions = Object.fromEntries(
     Object.entries(sessions).filter(([, s]) => s.status === 'closed')
@@ -376,6 +378,12 @@ export async function recalcTotals(groupCode) {
       const pv = sess?.pointValue || sess?._storedPointValue || 0;
       totals[e.playerId].krNet += Math.round((e.amount / 100) * pv * 100); // lagras i öre
     }
+  });
+
+  // Applicera bekräftade transaktioner – dessa justerar totals så att betalda skulder försvinner
+  Object.values(confirmations).forEach(tx => {
+    if (totals[tx.from] !== undefined) totals[tx.from].krNet += tx.amountKr || 0;
+    if (totals[tx.to] !== undefined) totals[tx.to].krNet -= tx.amountKr || 0;
   });
 
   await set(ref(db, `groups/${groupCode}/totals`), totals);
