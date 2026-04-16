@@ -39,7 +39,8 @@ const state = {
   confirmations: {},
   activeSessionId: null,
   unsubscribers: [],
-  newSessionSelectedPlayers: []
+  newSessionSelectedPlayers: [],
+  _locallyTriggeredClose: false
 };
 
 // ===== INIT =====
@@ -393,6 +394,8 @@ function minimizePaymentsLocal(netMap) {
 }
 
 function showCloseBookDialog() {
+  if (!state._locallyTriggeredClose) return; // visa bara för den som bekräftade sista transaktionen
+  state._locallyTriggeredClose = false;
   const modal = document.getElementById('modal-close-book');
   if (!modal || !modal.classList.contains('hidden')) return; // redan öppen
   openModal('modal-close-book');
@@ -1178,6 +1181,7 @@ async function handleConfirmTransaction(from, to, amount, amountKr) {
   const toName = state.players[to]?.name || to;
   const displayAmt = Math.abs(Math.round(amountKr / 100)) + ' kr';
   if (!confirm(`Har ${fromName} betalat ${toName} ${displayAmt}?`)) return;
+  state._locallyTriggeredClose = true;
   await confirmTransaction(state.groupCode, from, to, amount, amountKr);
   showToast('Transaktion bekräftad');
 }

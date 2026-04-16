@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-16 (uppdatering 44)
+- Fix: stängningsdialogen ("Stäng boken") visas nu bara på enheten som bekräftade sista transaktionen – inte hos alla anslutna spelare
+
 ## 2026-04-16 (uppdatering 43)
 - Fix: saldon återställdes till gamla värden efter stängd bok – recalcTotals räknade med sessioner från innan clearBook; nu filtreras sessioner på clearedAt-tidsstämpel
 
