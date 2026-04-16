@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-16 (uppdatering 48)
+- Ny funktion: ⌂ och ⚙-knappar visas nu i headern på Historik och Statistik – samma layout som Saldo-fliken
+
 ## 2026-04-16 (uppdatering 47)
 - Fix: diagram-switchen i statistik-modalen fungerar nu – p/kr-knapp längst ner till höger i modalen
 

@@ -131,8 +131,11 @@ function prefillCode() {
   renderSavedGroups();
   const saved = getSavedGroup();
   if (saved?.groupCode) {
-    document.getElementById('input-group-code').value = saved.groupCode;
+    const inp = document.getElementById('input-group-code');
+    inp.value = saved.groupCode;
     handleCodeBlur();
+    // Markera hela texten så användaren direkt kan skriva över koden
+    requestAnimationFrame(() => inp.select());
   }
 }
 
@@ -706,13 +709,16 @@ function bindEvents() {
   });
 
   // Go to lobby
-  document.getElementById('btn-go-lobby').addEventListener('click', () => {
+  const goToLobby = () => {
     state.unsubscribers.forEach(fn => fn());
     state.unsubscribers = [];
     document.getElementById('bottom-nav').classList.add('hidden');
     showScreen('lobby');
     prefillCode();
-  });
+  };
+  document.getElementById('btn-go-lobby').addEventListener('click', goToLobby);
+  document.getElementById('btn-go-lobby-history').addEventListener('click', goToLobby);
+  document.getElementById('btn-go-lobby-stats').addEventListener('click', goToLobby);
 
   // Dashboard unit toggle (kr/poäng)
   document.getElementById('btn-unit-toggle-dashboard').addEventListener('click', () => {
@@ -723,6 +729,8 @@ function bindEvents() {
 
   // Group settings
   document.getElementById('btn-group-settings').addEventListener('click', openGroupModal);
+  document.getElementById('btn-group-settings-history').addEventListener('click', openGroupModal);
+  document.getElementById('btn-group-settings-stats').addEventListener('click', openGroupModal);
   document.getElementById('btn-close-group-x').addEventListener('click', closeGroupModal);
   document.getElementById('btn-copy-code').addEventListener('click', () => {
     navigator.clipboard?.writeText(state.groupCode).then(() => showToast('Kod kopierad!'));
