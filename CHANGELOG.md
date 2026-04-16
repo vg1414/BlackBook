@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-16 (uppdatering 42)
+- Fix: "Stäng boken"-dialogen visades redan efter en bekräftad transaktion – nu visas den enbart när alla transaktioner är bekräftade
+
 ## 2026-04-16 (uppdatering 41)
 - Hotfix: återställ transaktionshistorik-funktionalitet (getTransactionHistory, renderTxHistory, handleOpenTxHistory) som felaktigt togs bort i uppdatering 40
 

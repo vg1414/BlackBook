@@ -351,7 +351,6 @@ function onTotalsUpdate() {
   renderSettlements(state.totals, state.players, state.confirmations);
   renderConfirmedTransactions(state.players, state.confirmations);
   renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
-  if (isAllSettled()) showCloseBookDialog();
 }
 
 function onHistoryUpdate() {
