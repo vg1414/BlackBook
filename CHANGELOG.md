@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-16 (uppdatering 43)
+- Fix: saldon återställdes till gamla värden efter stängd bok – recalcTotals räknade med sessioner från innan clearBook; nu filtreras sessioner på clearedAt-tidsstämpel
+
 ## 2026-04-16 (uppdatering 42)
 - Fix: "Stäng boken"-dialogen visades redan efter en bekräftad transaktion – nu visas den enbart när alla transaktioner är bekräftade
 

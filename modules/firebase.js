@@ -320,10 +320,13 @@ export async function clearBook(groupCode) {
     await update(histRef, updates);
   }
 
+  const clearedAt = Date.now();
   await set(ref(db, `groups/${groupCode}/totals`), zeroed);
   // history (Gruppens totaler) nollställs aldrig – det är permanent ackumulerad historik
   await set(ref(db, `groups/${groupCode}/balances`), zeroedBalances);
   await set(ref(db, `groups/${groupCode}/confirmations`), null);
+  // Spara tidsstämpel så att recalcTotals vet att bara räkna sessioner efter denna punkt
+  await update(ref(db, `groups/${groupCode}/meta`), { clearedAt });
 }
 
 export async function getTransactionHistory(groupCode) {
@@ -349,19 +352,23 @@ export function listenTotals(groupCode, callback) {
 
 export async function recalcTotals(groupCode) {
   // Räkna om totals från scratch – bara entries från stängda sessioner
-  const [entriesSnap, playersSnap, sessionsSnap, confSnap] = await Promise.all([
+  const [entriesSnap, playersSnap, sessionsSnap, confSnap, metaSnap] = await Promise.all([
     get(ref(db, `groups/${groupCode}/entries`)),
     get(ref(db, `groups/${groupCode}/players`)),
     get(ref(db, `groups/${groupCode}/sessions`)),
-    get(ref(db, `groups/${groupCode}/confirmations`))
+    get(ref(db, `groups/${groupCode}/confirmations`)),
+    get(ref(db, `groups/${groupCode}/meta`))
   ]);
   const entries = entriesSnap.exists() ? entriesSnap.val() : {};
   const players = playersSnap.exists() ? playersSnap.val() : {};
   const sessions = sessionsSnap.exists() ? sessionsSnap.val() : {};
   const confirmations = confSnap.exists() ? confSnap.val() : {};
+  const clearedAt = metaSnap.exists() ? (metaSnap.val().clearedAt || 0) : 0;
 
   const closedSessions = Object.fromEntries(
-    Object.entries(sessions).filter(([, s]) => s.status === 'closed')
+    Object.entries(sessions).filter(([, s]) =>
+      s.status === 'closed' && (s.closedAt || 0) >= clearedAt
+    )
   );
   const closedSessionIds = new Set(Object.keys(closedSessions));
 
