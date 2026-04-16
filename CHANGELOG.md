@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-04-16 (uppdatering 37)
+- Fix: "Alla skulder uppgjorda"-dialogen centreras nu korrekt på skärmen (horisontellt och vertikalt) istället för att hamna nere till vänster
+
+## 2026-04-16 (uppdatering 36)
+- Fix: radera-knappen och datum på avslutade sessioner krockade – knappen flyttad inuti headern, nu på samma rad som datum
+
+## 2026-04-16 (uppdatering 35)
+- Fix: nya sessioner startar nu alltid i poäng-läge ("p") även om ett poängvärde angetts – kan växlas till "kr" via toggle-knappen
+- Feature: radera-knapp på avslutade sessioner på dashboarden (diskret ✕ uppe i högra hörnet)
+- Feature: "Radera session"-knapp i session-detail-modalen
+- Fix: efter radering räknas totals om och UI uppdateras automatiskt
+
 ## 2026-04-15 (uppdatering 34)
 - Fix: saldo i kr nollställdes direkt vid bekräftelse av sista transaktionen – "Stäng boken"-knapp visas nu explicit istället för automatisk dialog
 - Fix: saldo i kr visade gammalt värde efter stängd bok – använder nu `totals` (nollställs vid clearBook) istället för `history` (permanent)

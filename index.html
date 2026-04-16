@@ -117,7 +117,10 @@
         </section>
 
         <section class="section" id="section-closed-sessions">
-          <h2 class="section-title">Avslutade sessioner</h2>
+          <div class="section-title-row">
+            <h2 class="section-title">Avslutade sessioner</h2>
+            <button id="btn-tx-history" class="btn-tx-history" title="Transaktionshistorik">💸</button>
+          </div>
           <div id="closed-sessions-list" class="closed-sessions-list">
             <p class="muted">Inga avslutade sessioner</p>
           </div>
@@ -308,6 +311,33 @@
         <h2 id="detail-session-name" class="detail-session-title">Session</h2>
       </div>
       <div id="detail-entries-list"></div>
+      <div class="detail-modal-footer">
+        <button class="btn btn-danger-ghost" id="btn-delete-session-detail">Radera session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Close Book Dialog -->
+  <div id="modal-close-book" class="modal-overlay modal-overlay--center hidden">
+    <div class="modal modal-close-book">
+      <div class="close-book-icon">📖</div>
+      <h2 class="close-book-title">Alla skulder uppgjorda!</h2>
+      <p class="close-book-desc">Alla transaktioner är bekräftade. Vill du stänga boken och nollställa saldona?</p>
+      <div class="close-book-actions">
+        <button class="btn btn-primary" id="btn-confirm-close-book">Stäng boken</button>
+        <button class="btn btn-secondary" id="btn-cancel-close-book">Avbryt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction History Modal -->
+  <div id="modal-tx-history" class="modal-overlay hidden">
+    <div class="modal modal-tx-history">
+      <button class="modal-close-btn" id="btn-close-tx-history-x">✕</button>
+      <h2>Transaktionshistorik</h2>
+      <div id="tx-history-list" class="tx-history-list">
+        <p class="muted">Inga bekräftade transaktioner än.</p>
+      </div>
     </div>
   </div>
 
