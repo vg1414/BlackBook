@@ -878,7 +878,10 @@ export function renderStats(sessions, players, entries) {
 
   const globalHtml = `
     <div class="stats-section">
-      <h3 class="stats-section-title">Gruppen</h3>
+      <div class="stats-section-header">
+        <h3 class="stats-section-title">Gruppen</h3>
+        <button id="stats-chart-btn" class="stats-chart-inline-btn" title="Visa diagram" aria-label="Öppna diagram">📈</button>
+      </div>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-value">${totalSessions}</div>
@@ -947,18 +950,30 @@ export function renderStats(sessions, players, entries) {
 
   container.innerHTML = globalHtml + `<div class="stats-section"><h3 class="stats-section-title">Per spelare</h3>${playersHtml}</div>`;
 
-  // FAB-knapp för kr/p-toggle – fast position, följer med vid scroll
+  // FAB-rad för p/kr-switch + diagram-knapp – fast position, följer med vid scroll
   const existing = document.getElementById('stats-unit-fab');
   if (existing) existing.remove();
+
+  const fabRow = document.createElement('div');
+  fabRow.id = 'stats-unit-fab';
+  fabRow.className = 'stats-unit-fab-row';
+
   const fab = document.createElement('button');
-  fab.id = 'stats-unit-fab';
-  fab.className = 'btn-detail-unit stats-unit-fab' + (useKr ? ' btn-detail-unit-active' : '');
+  fab.className = 'btn-detail-unit stats-unit-fab-toggle' + (useKr ? ' btn-detail-unit-active' : '');
   fab.textContent = useKr ? 'kr' : 'p';
   fab.addEventListener('click', () => {
     statsUnitMode = statsUnitMode === 'p' ? 'kr' : 'p';
     renderStats(sessions, players, entries);
   });
-  document.getElementById('screen-stats').appendChild(fab);
+
+  fabRow.appendChild(fab);
+  document.getElementById('screen-stats').appendChild(fabRow);
+}
+
+// ===== STATS CHART UNIT =====
+
+export function getStatsUnitMode() {
+  return statsUnitMode;
 }
 
 // ===== HELPERS =====

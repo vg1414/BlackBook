@@ -15,7 +15,8 @@ import {
   renderActiveSessionPreview, renderClosedSessionsOnDashboard,
   renderQuickMode, renderHistory, renderSessionDetail,
   renderGroupPlayers, renderSessionPlayerSelect, renderStats,
-  buildSessionStatsHTML, renderTotals, renderTxHistory
+  buildSessionStatsHTML, renderTotals, renderTxHistory,
+  getStatsUnitMode
 } from './modules/ui.js';
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
@@ -942,6 +943,19 @@ function bindEvents() {
   document.getElementById('btn-tx-history').addEventListener('click', handleOpenTxHistory);
   document.getElementById('btn-close-tx-history-x').addEventListener('click', () => closeModal('modal-tx-history'));
 
+  // Stats-diagram (delegerat – knappen skapas dynamiskt av renderStats)
+  document.getElementById('screen-stats').addEventListener('click', e => {
+    if (e.target.closest('#stats-chart-btn')) handleOpenStatsChart();
+  });
+  document.getElementById('btn-close-stats-chart-x').addEventListener('click', () => closeModal('modal-stats-chart'));
+  document.getElementById('stats-chart-unit-btn').addEventListener('click', () => {
+    statsChartUnitMode = statsChartUnitMode === 'p' ? 'kr' : 'p';
+    const btn = document.getElementById('stats-chart-unit-btn');
+    btn.textContent = statsChartUnitMode;
+    btn.classList.toggle('btn-detail-unit-active', statsChartUnitMode === 'kr');
+    buildStatsChart();
+  });
+
   // Close modals on overlay click
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', e => {
@@ -1419,6 +1433,169 @@ function handleOpenChart() {
       });
     }, 80);
   }
+}
+
+let statsChartInstance = null;
+let statsChartUnitMode = 'p'; // 'p' | 'kr' – diagrammets egna switch
+
+function buildStatsChart() {
+  const useKr = statsChartUnitMode === 'kr';
+  const unitLabel = useKr ? 'kr' : 'p';
+
+  const closed = Object.entries(state.sessions || {})
+    .filter(([, s]) => s.status === 'closed')
+    .sort((a, b) => (a[1].closedAt || 0) - (b[1].closedAt || 0));
+
+  if (closed.length === 0) return;
+
+  const labels = closed.map((_, i) => String(i + 1));
+
+  const palette = [
+    '#e05252', '#4fc3f7', '#66bb6a', '#ffd54f',
+    '#ba68c8', '#ff8a65', '#4db6ac', '#f06292'
+  ];
+
+  const playerIds = Object.keys(state.players);
+  const datasets = playerIds
+    .filter(id => state.players[id])
+    .map((id, i) => {
+      const p = state.players[id];
+      const data = closed.map(([sessionId, s]) => {
+        const pointValue = s._storedPointValue || s.pointValue || 1;
+        const sessionEntries = Object.values(state.entries || {})
+          .filter(e => e.sessionId === sessionId && !e.deleted && e.playerId === id);
+        const net = sessionEntries.reduce((sum, e) => sum + e.amount, 0);
+        const points = net / 100;
+        if (useKr) return Math.round(points * pointValue);
+        return Math.round(points);
+      });
+      const color = p.color || palette[i % palette.length];
+      return {
+        label: p.name,
+        data,
+        borderColor: color,
+        backgroundColor: color + '22',
+        tension: 0.35,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: false,
+        borderWidth: 2
+      };
+    });
+
+  if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
+
+  const drawPlugin = {
+    id: 'statsDrawReveal',
+    beforeDraw(chart) {
+      const { ctx: c, chartArea } = chart;
+      if (!chartArea) return;
+      const progress = chart._revealProgress ?? 0;
+      const clipX = chartArea.left + (chartArea.right - chartArea.left) * progress;
+      c.save();
+      c.beginPath();
+      c.rect(0, 0, clipX, chart.height);
+      c.clip();
+    },
+    afterDraw(chart) { chart.ctx.restore(); }
+  };
+
+  const ctx = document.getElementById('stats-chart-canvas').getContext('2d');
+  statsChartInstance = new Chart(ctx, {
+    plugins: [drawPlugin],
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        tooltip: {
+          backgroundColor: '#1a1a1a',
+          titleColor: '#f0f0f0',
+          bodyColor: '#f0f0f0',
+          borderColor: '#444',
+          borderWidth: 1,
+          usePointStyle: true,
+          callbacks: {
+            title(items) { return `Session ${items[0].label}`; },
+            label(context) {
+              const v = context.parsed.y;
+              const sign = v > 0 ? '+' : '';
+              return ` ${context.dataset.label}: ${sign}${v} ${unitLabel}`;
+            },
+            labelColor(context) {
+              const color = context.dataset.borderColor;
+              return { borderColor: color, backgroundColor: color };
+            }
+          }
+        },
+        legend: {
+          labels: {
+            color: '#f0f0f0',
+            font: { size: 12 },
+            usePointStyle: true,
+            pointStyle: 'rect',
+            padding: 12,
+            generateLabels(chart) {
+              return chart.data.datasets.map((ds, i) => ({
+                text: ds.label,
+                fillStyle: ds.borderColor,
+                strokeStyle: ds.borderColor,
+                pointStyle: 'rect',
+                fontColor: '#f0f0f0',
+                lineWidth: 0,
+                hidden: !chart.isDatasetVisible(i),
+                datasetIndex: i
+              }));
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#888' },
+          grid: { color: '#2e2e2e' },
+          title: { display: true, text: 'Session', color: '#888', font: { size: 11 } }
+        },
+        y: {
+          ticks: { color: '#888', callback: v => (v > 0 ? '+' : '') + v + ' ' + unitLabel },
+          grid: { color: '#2e2e2e' }
+        }
+      }
+    }
+  });
+
+  // Animera reveal vänster→höger
+  const duration = 900;
+  const start = performance.now();
+  function easeInOutQuart(t) {
+    return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
+  }
+  function animate(now) {
+    const t = Math.min((now - start) / duration, 1);
+    statsChartInstance._revealProgress = easeInOutQuart(t);
+    statsChartInstance.render();
+    if (t < 1) requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
+}
+
+function handleOpenStatsChart() {
+  const closed = Object.entries(state.sessions || {})
+    .filter(([, s]) => s.status === 'closed');
+  if (closed.length === 0) { showToast('Inga avslutade sessioner'); return; }
+
+  statsChartUnitMode = getStatsUnitMode();
+
+  const btn = document.getElementById('stats-chart-unit-btn');
+  if (btn) {
+    btn.textContent = statsChartUnitMode;
+    btn.classList.toggle('btn-detail-unit-active', statsChartUnitMode === 'kr');
+  }
+
+  openModal('modal-stats-chart');
+  requestAnimationFrame(() => buildStatsChart());
 }
 
 async function handleReopenSession(sessionId) {

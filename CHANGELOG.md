@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-04-16 (uppdatering 47)
+- Fix: diagram-switchen i statistik-modalen fungerar nu – p/kr-knapp längst ner till höger i modalen
+
+## 2026-04-16 (uppdatering 46)
+- Ny funktion: 📈-knappen i statistik placerad på samma rad som "Gruppen" (längst till höger)
+- Ny funktion: linjediagram i modal visar netto per session per spelare, med switch för p/kr
+
 ## 2026-04-16 (uppdatering 45)
 - Boken stängs nu automatiskt när alla transaktioner är bekräftade – alla spelare ser en informationsruta med OK-knapp (ingen funktionell knapp behövs längre)
 
