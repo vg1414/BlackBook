@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-16 (uppdatering 40)
+- Hotfix: appen kraschade (kunde inte gå med i grupp) p.g.a. importer av funktioner som inte existerar (getTransactionHistory, renderTxHistory) – borttagna
+
 ## 2026-04-16 (uppdatering 39)
 - Fix: "Stäng boken"-dialogen visas nu på mobil också när alla transaktioner är bekräftade (race condition med Firebase-lyssnare åtgärdad)
 

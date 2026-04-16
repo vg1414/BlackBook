@@ -7,7 +7,7 @@ import {
   createSession, getMeta, deletePlayer, reopenSession, deleteSession,
   confirmTransaction, unconfirmTransaction, listenConfirmations,
   clearBook, deleteGroup, updateSessionPointValue, updateSessionMeta,
-  listenTotals, recalcTotals, listenHistory, getTransactionHistory
+  listenTotals, recalcTotals, listenHistory
 } from './modules/firebase.js';
 import {
   showScreen, showToast,
@@ -15,7 +15,7 @@ import {
   renderActiveSessionPreview, renderClosedSessionsOnDashboard,
   renderQuickMode, renderHistory, renderSessionDetail,
   renderGroupPlayers, renderSessionPlayerSelect, renderStats,
-  buildSessionStatsHTML, renderTotals, renderTxHistory
+  buildSessionStatsHTML, renderTotals
 } from './modules/ui.js';
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
@@ -405,11 +405,6 @@ async function handleClearBook() {
   showToast('Boken stängd!');
 }
 
-async function handleOpenTxHistory() {
-  const txHistory = await getTransactionHistory(state.groupCode);
-  renderTxHistory(txHistory, state.players);
-  openModal('modal-tx-history');
-}
 
 function onEntriesUpdate() {
   renderSessionRounds();
@@ -935,10 +930,6 @@ function bindEvents() {
   // Stäng boken-dialog
   document.getElementById('btn-confirm-close-book').addEventListener('click', handleClearBook);
   document.getElementById('btn-cancel-close-book').addEventListener('click', () => closeModal('modal-close-book'));
-
-  // Transaktionshistorik
-  document.getElementById('btn-tx-history').addEventListener('click', handleOpenTxHistory);
-  document.getElementById('btn-close-tx-history-x').addEventListener('click', () => closeModal('modal-tx-history'));
 
   // Close modals on overlay click
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
