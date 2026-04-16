@@ -48,21 +48,23 @@ export function renderBalances(balances, players, currentPlayerId, totals, activ
 
   const items = Object.entries(players).map(([id, player]) => {
     const net = balances[id]?.net || 0;
-    return { id, player, net };
-  }).sort((a, b) => b.net - a.net);
+    const totalNet = totals[id]?.net || 0;
+    const totalKrNet = totals[id]?.krNet || 0;
+    return { id, player, net, totalNet, totalKrNet };
+  }).sort((a, b) => showKr ? b.totalKrNet - a.totalKrNet : b.totalNet - a.totalNet);
 
-  container.innerHTML = items.map(({ id, player, net }) => {
-    const cls = net > 0 ? 'positive' : net < 0 ? 'negative' : '';
-    const amtCls = net > 0 ? 'positive' : net < 0 ? 'negative' : 'zero';
+  container.innerHTML = items.map(({ id, player, net, totalNet, totalKrNet }) => {
+    const displayVal = showKr ? totalKrNet : totalNet;
+    const cls = displayVal > 0 ? 'positive' : displayVal < 0 ? 'negative' : '';
+    const amtCls = displayVal > 0 ? 'positive' : displayVal < 0 ? 'negative' : 'zero';
     const isYou = id === currentPlayerId;
     const initial = player.name.charAt(0).toUpperCase();
 
     let display;
     if (showKr) {
-      const closedKrNet = totals[id]?.krNet || 0;
-      display = Math.round(closedKrNet / 100) + ' kr';
+      display = Math.round(totalKrNet / 100) + ' kr';
     } else {
-      display = formatPoints(net, null);
+      display = formatPoints(totalNet, null);
     }
 
     return `
@@ -179,7 +181,7 @@ export function renderTotals(totals, players, showKr, sessions) {
   }).join('');
 }
 
-export function renderConfirmedTransactions(players, confirmations = {}, allSettled = false) {
+export function renderConfirmedTransactions(players, confirmations = {}) {
   const section = document.getElementById('section-confirmed');
   const container = document.getElementById('confirmed-list');
 
@@ -208,17 +210,47 @@ export function renderConfirmedTransactions(players, confirmations = {}, allSett
       </div>
     `;
   }).join('');
+}
 
-  const existing = section.querySelector('.btn-clear-book');
-  if (allSettled && !existing) {
-    const btn = document.createElement('button');
-    btn.className = 'btn btn-clear-book';
-    btn.id = 'btn-clear-book';
-    btn.textContent = 'Stäng boken';
-    section.appendChild(btn);
-  } else if (!allSettled && existing) {
-    existing.remove();
+// ===== TRANSACTION HISTORY MODAL =====
+
+export function renderTxHistory(txHistory, players) {
+  const container = document.getElementById('tx-history-list');
+  const entries = Object.values(txHistory || {});
+  if (entries.length === 0) {
+    container.innerHTML = '<p class="muted">Inga bekräftade transaktioner än.</p>';
+    return;
   }
+
+  // Sortera kronologiskt, nyast först
+  entries.sort((a, b) => (b.confirmedAt || 0) - (a.confirmedAt || 0));
+
+  container.innerHTML = entries.map(t => {
+    const fromName = players[t.from]?.name || t.from;
+    const toName = players[t.to]?.name || t.to;
+    const date = t.confirmedAt
+      ? new Date(t.confirmedAt).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })
+      : '';
+    const time = t.confirmedAt
+      ? new Date(t.confirmedAt).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
+      : '';
+    const amt = t.amountKr != null
+      ? Math.abs(Math.round(t.amountKr / 100)) + ' kr'
+      : Math.abs(t.amount) + ' p';
+    return `
+      <div class="tx-history-item">
+        <div class="tx-history-names">
+          <span class="tx-from">${escHtml(fromName)}</span>
+          <span class="tx-arrow">→</span>
+          <span class="tx-to">${escHtml(toName)}</span>
+        </div>
+        <div class="tx-history-meta">
+          <span class="tx-amount">${amt}</span>
+          <span class="tx-date">${date}${time ? ' · ' + time : ''}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // ===== ACTIVE SESSION PREVIEW =====
@@ -358,6 +390,9 @@ export function renderHistory(sessions, players, entries) {
 export function renderSessionDetail(session, entries, players) {
   const nameEl = document.getElementById('detail-session-name');
   nameEl.textContent = session.name || typeLabel(session.type);
+
+  const deleteBtn = document.getElementById('btn-delete-session-detail');
+  if (deleteBtn) deleteBtn.dataset.sessionId = session.id || '';
 
   const storedPointValue = session._storedPointValue || session.pointValue || null;
 
@@ -670,6 +705,7 @@ export function renderClosedSessionsOnDashboard(sessions, players, entries, show
         <div class="history-item-header">
           <span class="history-item-name">${escHtml(label)}</span>
           <span class="history-item-date">${date}</span>
+          <button class="closed-session-delete" data-delete-session-id="${id}" title="Radera session" aria-label="Radera session">✕</button>
         </div>
         ${totalsHtml ? `<div class="history-totals">${totalsHtml}</div>` : ''}
       </div>
