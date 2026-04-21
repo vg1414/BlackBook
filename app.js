@@ -691,6 +691,13 @@ function bindEvents() {
         showToast('Ingen aktiv session – starta en ny');
         return;
       }
+      if (screen === 'stats' && state.activeSessionId) {
+        const currentScreen = document.querySelector('.screen.active')?.id;
+        if (currentScreen === 'screen-session') {
+          handleOpenChart();
+          return;
+        }
+      }
       showScreen(screen);
       updateUnitToggleBtn();
     });
@@ -761,17 +768,17 @@ function bindEvents() {
   document.getElementById('btn-session-chart').addEventListener('click', handleOpenChart);
   document.getElementById('btn-close-chart-x').addEventListener('click', () => closeModal('modal-chart'));
 
-  // Flik-switching i diagram-modalen
+  // Diagram-knapp i stats-panelen (delegerat – knappen skapas dynamiskt)
   document.getElementById('modal-chart').addEventListener('click', e => {
-    const tab = e.target.closest('.chart-tab');
-    if (!tab) return;
-    const name = tab.dataset.tab;
-    document.querySelectorAll('.chart-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-    document.getElementById('chart-tab-chart').classList.toggle('hidden', name !== 'chart');
-    document.getElementById('chart-tab-stats').classList.toggle('hidden', name !== 'stats');
-    // Initiera Chart.js med reveal-animation när diagram-fliken visas
-    if (name === 'chart') {
+    if (e.target.closest('#btn-chart-open-diagram')) {
+      document.getElementById('chart-tab-chart').classList.remove('hidden');
+      document.getElementById('chart-tab-stats').classList.add('hidden');
       requestAnimationFrame(initChartFromPending);
+      return;
+    }
+    if (e.target.closest('#btn-chart-back')) {
+      document.getElementById('chart-tab-chart').classList.add('hidden');
+      document.getElementById('chart-tab-stats').classList.remove('hidden');
     }
   });
   document.getElementById('btn-session-settings').addEventListener('click', openSessionSettingsModal);
@@ -1181,7 +1188,9 @@ async function handleStartSession() {
   }
 
   state.activeSessionId = sessionId;
-  state.sessions[sessionId] = { pointValue: null, _storedPointValue: pointValue || null };
+  const playerIdsObj = {};
+  state.newSessionSelectedPlayers.forEach(id => { playerIdsObj[id] = true; });
+  state.sessions[sessionId] = { pointValue: null, _storedPointValue: pointValue || null, playerIds: playerIdsObj, status: 'active' };
 
   closeNewSessionModal();
   showScreen('session');
@@ -1419,6 +1428,17 @@ function handleOpenChart() {
       false
     );
 
+    // Lägg till diagram-knapp i meta-raden (längst till vänster)
+    const metaRow = statsContainer.querySelector('.sd-meta-row');
+    if (metaRow) {
+      const chartBtn = document.createElement('button');
+      chartBtn.id = 'btn-chart-open-diagram';
+      chartBtn.className = 'btn-open-chart-from-stats';
+      chartBtn.title = 'Visa diagram';
+      chartBtn.innerHTML = '📈';
+      metaRow.prepend(chartBtn);
+    }
+
   }
 
   // Spara chart-data för lazy-initiering när diagram-fliken öppnas
@@ -1427,8 +1447,7 @@ function handleOpenChart() {
 
   openModal('modal-chart');
 
-  // Öppna alltid på stats-fliken
-  document.querySelectorAll('.chart-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'stats'));
+  // Öppna alltid på stats-panelen
   document.getElementById('chart-tab-chart').classList.add('hidden');
   document.getElementById('chart-tab-stats').classList.remove('hidden');
 
@@ -1468,14 +1487,15 @@ function buildStatsChart() {
     .filter(id => state.players[id])
     .map((id, i) => {
       const p = state.players[id];
+      let cumulative = 0;
       const data = closed.map(([sessionId, s]) => {
         const pointValue = s._storedPointValue || s.pointValue || 1;
         const sessionEntries = Object.values(state.entries || {})
           .filter(e => e.sessionId === sessionId && !e.deleted && e.playerId === id);
         const net = sessionEntries.reduce((sum, e) => sum + e.amount, 0);
         const points = net / 100;
-        if (useKr) return Math.round(points * pointValue);
-        return Math.round(points);
+        cumulative += useKr ? Math.round(points * pointValue) : Math.round(points);
+        return cumulative;
       });
       const color = p.color || palette[i % palette.length];
       return {
@@ -1807,7 +1827,7 @@ function randomColor() {
     '#66bb6a', // grön
     '#ffd54f', // gul
     '#ba68c8', // lila
-    '#ff8a65', // orange
+    '#d4e157', // lime-gul
     '#4db6ac', // turkos
     '#f06292', // rosa
   ];

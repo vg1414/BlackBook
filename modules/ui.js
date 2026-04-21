@@ -426,6 +426,13 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
   // Längsta vinststreak per runda (vem vann varje runda)
   const streaks = {};
   playerIds.forEach(pid => { streaks[pid] = { current: 0, max: 0 }; });
+
+  // Topp- och bottennotering per spelare (löpande saldo)
+  const peakBalance = {};
+  const lowestBalance = {};
+  const runningBal = {};
+  playerIds.forEach(pid => { runningBal[pid] = 0; peakBalance[pid] = null; lowestBalance[pid] = null; });
+
   rounds.forEach(round => {
     let roundWinner = null, roundMax = -Infinity;
     round.forEach(e => {
@@ -438,6 +445,13 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
       } else {
         streaks[pid].current = 0;
       }
+    });
+    round.forEach(e => {
+      if (runningBal[e.playerId] === undefined) return;
+      runningBal[e.playerId] += e.amount;
+      const bal = runningBal[e.playerId];
+      if (peakBalance[e.playerId] === null || bal > peakBalance[e.playerId]) peakBalance[e.playerId] = bal;
+      if (lowestBalance[e.playerId] === null || bal < lowestBalance[e.playerId]) lowestBalance[e.playerId] = bal;
     });
   });
 
@@ -546,7 +560,9 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
               </div>
               <div class="sd-pstat-chips">
                 ${st?.max > 0 ? `<span class="sd-chip">🔥 ${st.max} streak</span>` : ''}
-                ${br?.amount > -Infinity && br?.amount > 0 ? `<span class="sd-chip">⚡ Bästa: ${fmt(br.amount)}</span>` : ''}
+                ${br?.amount > -Infinity && br?.amount > 0 ? `<span class="sd-chip">⚡ Bästa runda: ${fmt(br.amount)}</span>` : ''}
+                ${peakBalance[pid] !== null && peakBalance[pid] > 0 ? `<span class="sd-chip sd-chip--pos">▲ Topp: ${fmt(peakBalance[pid])}</span>` : ''}
+                ${lowestBalance[pid] !== null && lowestBalance[pid] < 0 ? `<span class="sd-chip sd-chip--neg">▼ Botten: ${fmt(lowestBalance[pid])}</span>` : ''}
               </div>
             </div>
           `;

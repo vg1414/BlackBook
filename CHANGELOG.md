@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-21 (uppdatering 50)
+- UX: 📊-knappen i bottom nav är nu kontextberoende – på session-skärmen öppnas sessionsstatistik (modal-chart), på övriga skärmar öppnas gruppstatistik som vanligt
+
+## 2026-04-21 (uppdatering 49)
+- UX: flikarna Stats/Diagram i chart-modalen ersatta med en 📊-knapp längst ner i stats-panelen; klickar man öppnas diagrammet, med "← Stats"-länk för att gå tillbaka
+
 ## 2026-04-16 (uppdatering 48)
 - Ny funktion: ⌂ och ⚙-knappar visas nu i headern på Historik och Statistik – samma layout som Saldo-fliken
 

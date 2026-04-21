@@ -136,7 +136,7 @@
         <button id="btn-back-dashboard" class="btn-icon">←</button>
         <h1 class="header-title" id="session-title">Session</h1>
         <div class="header-actions">
-          <button id="btn-session-chart" class="btn-icon">📈</button>
+          <button id="btn-session-chart" class="btn-icon btn-icon--chart">📈</button>
           <button id="btn-session-settings" class="btn-icon">⚙</button>
           <button id="btn-close-session" class="btn-text btn-danger">Avsluta session</button>
         </div>
@@ -362,11 +362,8 @@
   <div id="modal-chart" class="modal-overlay hidden">
     <div class="modal modal-chart">
       <button class="modal-close-btn" id="btn-close-chart-x">✕</button>
-      <div class="chart-modal-tabs">
-        <button class="chart-tab active" data-tab="stats">Stats</button>
-        <button class="chart-tab" data-tab="chart">Diagram</button>
-      </div>
       <div class="chart-tab-panel hidden" id="chart-tab-chart">
+        <button class="btn-chart-back" id="btn-chart-back" title="Tillbaka till stats">← Stats</button>
         <div class="chart-container">
           <canvas id="session-chart"></canvas>
         </div>
