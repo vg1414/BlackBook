@@ -434,16 +434,15 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
   playerIds.forEach(pid => { runningBal[pid] = 0; peakBalance[pid] = null; lowestBalance[pid] = null; });
 
   rounds.forEach(round => {
-    let roundWinner = null, roundMax = -Infinity;
-    round.forEach(e => {
-      if (e.amount > roundMax) { roundMax = e.amount; roundWinner = e.playerId; }
-    });
+    const roundAmounts = {};
+    round.forEach(e => { roundAmounts[e.playerId] = e.amount; });
     playerIds.forEach(pid => {
-      if (pid === roundWinner) {
+      const amt = roundAmounts[pid] ?? 0;
+      if (amt < 0) {
+        streaks[pid].current = 0;
+      } else {
         streaks[pid].current++;
         if (streaks[pid].current > streaks[pid].max) streaks[pid].max = streaks[pid].current;
-      } else {
-        streaks[pid].current = 0;
       }
     });
     round.forEach(e => {

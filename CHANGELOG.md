@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-21 (uppdatering 51)
+- Fix: streak inom session nollställs nu bara om spelaren hade negativt resultat (<0) i rundan – breakeven eller plus håller streaken igång
+
 ## 2026-04-21 (uppdatering 50)
 - UX: 📊-knappen i bottom nav är nu kontextberoende – på session-skärmen öppnas sessionsstatistik (modal-chart), på övriga skärmar öppnas gruppstatistik som vanligt
 
