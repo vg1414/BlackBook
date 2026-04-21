@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-21 (uppdatering 52)
+- UX: Topp och Botten visas nu på en egen rad under Streak och Bästa runda i per-spelare-stats
+
 ## 2026-04-21 (uppdatering 51)
 - Fix: streak inom session nollställs nu bara om spelaren hade negativt resultat (<0) i rundan – breakeven eller plus håller streaken igång
 

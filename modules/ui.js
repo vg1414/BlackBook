@@ -560,6 +560,8 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
               <div class="sd-pstat-chips">
                 ${st?.max > 0 ? `<span class="sd-chip">🔥 ${st.max} streak</span>` : ''}
                 ${br?.amount > -Infinity && br?.amount > 0 ? `<span class="sd-chip">⚡ Bästa runda: ${fmt(br.amount)}</span>` : ''}
+              </div>
+              <div class="sd-pstat-chips">
                 ${peakBalance[pid] !== null && peakBalance[pid] > 0 ? `<span class="sd-chip sd-chip--pos">▲ Topp: ${fmt(peakBalance[pid])}</span>` : ''}
                 ${lowestBalance[pid] !== null && lowestBalance[pid] < 0 ? `<span class="sd-chip sd-chip--neg">▼ Botten: ${fmt(lowestBalance[pid])}</span>` : ''}
               </div>
