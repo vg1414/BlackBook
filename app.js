@@ -16,7 +16,7 @@ import {
   renderQuickMode, renderHistory, renderSessionDetail,
   renderGroupPlayers, renderSessionPlayerSelect, renderStats,
   buildSessionStatsHTML, renderTotals, renderTxHistory,
-  getStatsUnitMode
+  getStatsUnitMode, setOpenChartCallback
 } from './modules/ui.js';
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
@@ -447,14 +447,14 @@ function renderSessionRounds() {
 
   if (sessionEntries.length === 0) { container.innerHTML = '<div class="notepad-empty"></div>'; clearStickyTotal(); return; }
 
-  // Gruppera entries per omgång (< 5s isär)
+  // Gruppera entries per omgång (< 500ms isär)
   const rounds = [];
   let prevTime = null;
   for (const e of sessionEntries) {
-    if (prevTime === null || e.timestamp - prevTime > 5000) {
+    if (prevTime === null || e.timestamp - prevTime > 500) {
       rounds.push([]);
-      prevTime = e.timestamp;
     }
+    prevTime = e.timestamp;
     rounds[rounds.length - 1].push(e);
   }
 
@@ -762,10 +762,13 @@ function bindEvents() {
     handleRemovePlayer(btn.dataset.playerId);
   });
 
+  // Koppla chart-callback för session-detail-modalen
+  setOpenChartCallback((sessionId) => handleOpenChart(sessionId));
+
   // Session back / close / delete / chart / settings
   document.getElementById('btn-back-dashboard').addEventListener('click', () => { showScreen('dashboard'); updateUnitToggleBtn(); });
   document.getElementById('btn-close-session').addEventListener('click', handleCloseSession);
-  document.getElementById('btn-session-chart').addEventListener('click', handleOpenChart);
+  document.getElementById('btn-session-chart').addEventListener('click', () => handleOpenChart());
   document.getElementById('btn-close-chart-x').addEventListener('click', () => closeModal('modal-chart'));
 
   // Diagram-knapp i stats-panelen (delegerat – knappen skapas dynamiskt)
@@ -816,7 +819,10 @@ function bindEvents() {
 
     // Synka knappens tecken och inputfärg baserat på faktiskt värde
     const finalVal = parseFloat(e.target.value) || 0;
-    if (btn) btn.textContent = finalVal < 0 ? '−' : '+';
+    if (btn) {
+      btn.textContent = finalVal < 0 ? '−' : '+';
+      btn.classList.toggle('is-negative', finalVal < 0);
+    }
     e.target.style.color = finalVal < 0 ? '#e74c3c' : '';
   });
 
@@ -831,6 +837,7 @@ function bindEvents() {
       // Tomt fält – sätt pendingSign så att nästa inmatning får rätt tecken
       const newSign = btn.textContent === '+' ? 'negative' : 'positive';
       btn.textContent = newSign === 'negative' ? '−' : '+';
+      btn.classList.toggle('is-negative', newSign === 'negative');
       if (newSign === 'negative') {
         input.dataset.pendingSign = 'negative';
       } else {
@@ -840,6 +847,7 @@ function bindEvents() {
       const newVal = -val;
       input.value = String(newVal);
       btn.textContent = newVal > 0 ? '+' : '−';
+      btn.classList.toggle('is-negative', newVal < 0);
       input.style.color = newVal < 0 ? '#e74c3c' : '';
       delete input.dataset.pendingSign;
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1341,8 +1349,8 @@ function initChartFromPending() {
   requestAnimationFrame(animate);
 }
 
-function handleOpenChart() {
-  const sessionId = state.activeSessionId;
+function handleOpenChart(sessionId) {
+  if (!sessionId) sessionId = state.activeSessionId;
   if (!sessionId) { showToast('Ingen aktiv session'); return; }
 
   const sessionEntries = Object.values(state.entries)
@@ -1352,15 +1360,14 @@ function handleOpenChart() {
   const session = state.sessions[sessionId];
   const playerIds = session?.playerIds ? Object.keys(session.playerIds) : [];
 
-  // Build cumulative data per player, one point per "round" (grouped by timestamp proximity)
-  // Each submit call creates entries at roughly the same timestamp – group by < 5s apart
+  // Gruppera i rundor (< 500ms isär)
   const rounds = [];
   let prevTime = null;
   for (const e of sessionEntries) {
-    if (prevTime === null || e.timestamp - prevTime > 5000) {
+    if (prevTime === null || e.timestamp - prevTime > 500) {
       rounds.push([]);
-      prevTime = e.timestamp;
     }
+    prevTime = e.timestamp;
     rounds[rounds.length - 1].push(e);
   }
 
@@ -1676,7 +1683,7 @@ async function handleQuickSubmit() {
       i.style.color = '';
       delete i.dataset.pendingSign;
     });
-    document.querySelectorAll('#quick-players-list .btn-sign-toggle').forEach(b => b.textContent = '+');
+    document.querySelectorAll('#quick-players-list .btn-sign-toggle').forEach(b => { b.textContent = '+'; b.classList.remove('is-negative'); });
     updateQuickSum();
     showToast('Resultat registrerat!');
   } catch (err) {
@@ -1799,8 +1806,7 @@ function updateUnitToggleBtn(animate = false) {
     setTimeout(() => btn.classList.remove('flipping'), 260);
   }
   label.textContent = pv ? 'kr' : 'p';
-  // Knappen sitter nu i session-sticky-top, alltid flex
-  btn.style.display = 'flex';
+  btn.style.display = 'block';
 }
 
 async function handleSaveSessionSettings() {

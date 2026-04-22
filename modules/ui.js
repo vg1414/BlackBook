@@ -9,6 +9,8 @@ import { minimizePayments, oreToSek, formatAmount, formatPoints } from './settle
 let toastTimer = null;
 let detailUnitMode = 'kr'; // 'kr' | 'p'
 let statsUnitMode = 'p'; // 'p' | 'kr'
+let openChartCallback = null;
+export function setOpenChartCallback(fn) { openChartCallback = fn; }
 
 export function showToast(message, duration = 2500) {
   const toast = document.getElementById('toast');
@@ -440,7 +442,7 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
       const amt = roundAmounts[pid] ?? 0;
       if (amt < 0) {
         streaks[pid].current = 0;
-      } else {
+      } else if (amt > 0) {
         streaks[pid].current++;
         if (streaks[pid].current > streaks[pid].max) streaks[pid].max = streaks[pid].current;
       }
@@ -478,6 +480,7 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
     <div class="${compact ? 'sd-body sd-body--compact' : 'sd-body'}">
 
       <div class="sd-meta-row">
+        ${showUnitToggle ? `<button class="btn-icon btn-icon--chart" id="btn-detail-chart">📈</button>` : ''}
         <span class="sd-meta-chip">🃏 ${rounds.length} rundor</span>
         <span class="sd-meta-chip">⏱ ${durationStr}</span>
         ${showUnitToggle && storedPointValue ? `<button class="btn-detail-unit${detailUnitMode === 'kr' ? ' btn-detail-unit-active' : ''}" id="btn-detail-unit-toggle">${detailUnitMode === 'kr' ? 'kr' : 'p'}</button>` : ''}
@@ -587,14 +590,14 @@ function renderSessionDetailBody(session, entries, players, pointValue, storedPo
   }
   const playerIds = session.playerIds ? Object.keys(session.playerIds) : [];
 
-  // Gruppera i rundor (< 5s isär)
+  // Gruppera i rundor (< 500ms isär)
   const rounds = [];
   let prevTime = null;
   for (const [, e] of sessionEntries) {
-    if (prevTime === null || e.timestamp - prevTime > 5000) {
+    if (prevTime === null || e.timestamp - prevTime > 500) {
       rounds.push([]);
-      prevTime = e.timestamp;
     }
+    prevTime = e.timestamp;
     rounds[rounds.length - 1].push(e);
   }
 
@@ -617,6 +620,12 @@ function renderSessionDetailBody(session, entries, players, pointValue, storedPo
   }
 
   listEl.innerHTML = buildSessionStatsHTML(rounds, playerIds, players, totals, pointValue, storedPointValue, durationStr, true);
+
+  // Koppla 📈-knappen
+  const chartBtn = listEl.querySelector('#btn-detail-chart');
+  if (chartBtn && openChartCallback) {
+    chartBtn.addEventListener('click', () => openChartCallback(session.id));
+  }
 
   // Koppla kr/p-toggle om den renderades
   if (storedPointValue) {
@@ -750,14 +759,14 @@ export function renderStats(sessions, players, entries) {
       .filter(e => e.sessionId === id && !e.deleted)
       .sort((a, b) => a.timestamp - b.timestamp);
 
-    // Gruppera i rundor (< 5s isär)
+    // Gruppera i rundor (< 500ms isär)
     const rounds = [];
     let prevTime = null;
     for (const e of sessionEntries) {
-      if (prevTime === null || e.timestamp - prevTime > 5000) {
+      if (prevTime === null || e.timestamp - prevTime > 500) {
         rounds.push([]);
-        prevTime = e.timestamp;
       }
+      prevTime = e.timestamp;
       rounds[rounds.length - 1].push(e);
     }
 
@@ -806,6 +815,7 @@ export function renderStats(sessions, players, entries) {
   });
 
   // Vinststreak: per session räknas vinnaren (högst total)
+  const runningBalance = {};
   sessionData.forEach(({ playerTotals, rounds, pointValue }) => {
     let maxTotal = -Infinity;
     let winner = null;
@@ -819,8 +829,7 @@ export function renderStats(sessions, players, entries) {
       }
     });
 
-    // Högsta runda per spelare + löpande saldo (topp/botten)
-    const runningBalance = {};
+    // Högsta runda per spelare + ackumulerat saldo (topp/botten över alla sessioner)
     rounds.forEach(round => {
       round.forEach(e => {
         if (!playerStats[e.playerId]) return;

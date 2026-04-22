@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-22 (uppdatering 55)
+- Fix: 📈-knapp i stängda sessioners detaljmodal öppnar nu graf för den sessionen
+- Fix: scroll i session-detail-modalen fungerar nu korrekt på mobil
+- Fix: rundgrupperingsgräns sänkt från 5s → 500ms på alla fyra ställen i koden (förhindrar att snabbt bokförda rundor slås ihop)
+- Fix: streak-räkning hoppade ibland över rundor pga 5s-buggen – nu korrekt
+
 ## 2026-04-21 (uppdatering 52)
 - UX: Topp och Botten visas nu på en egen rad under Streak och Bästa runda i per-spelare-stats
 
