@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-26 (uppdatering 56)
+- Fix: Sessionens namn förifylls nu korrekt i sessionsinställningar (saknades i lokalt state-cache)
+- Fix: Poängvärde förifylls nu korrekt i sessionsinställningar (läste fel fält – pointValue istället för _storedPointValue)
+- Fix: Spara i sessionsinställningar sparar nu poängvärdet till rätt fält (_storedPointValue) så toggle-logiken fungerar korrekt
+
 ## 2026-04-22 (uppdatering 55)
 - Fix: 📈-knapp i stängda sessioners detaljmodal öppnar nu graf för den sessionen
 - Fix: scroll i session-detail-modalen fungerar nu korrekt på mobil

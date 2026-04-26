@@ -1198,7 +1198,7 @@ async function handleStartSession() {
   state.activeSessionId = sessionId;
   const playerIdsObj = {};
   state.newSessionSelectedPlayers.forEach(id => { playerIdsObj[id] = true; });
-  state.sessions[sessionId] = { pointValue: null, _storedPointValue: pointValue || null, playerIds: playerIdsObj, status: 'active' };
+  state.sessions[sessionId] = { name, pointValue: null, _storedPointValue: pointValue || null, playerIds: playerIdsObj, status: 'active' };
 
   closeNewSessionModal();
   showScreen('session');
@@ -1747,7 +1747,7 @@ function openSessionSettingsModal() {
   if (!state.activeSessionId) return;
   const session = state.sessions[state.activeSessionId];
   document.getElementById('input-session-name-edit').value = session?.name || '';
-  document.getElementById('input-session-point-value-modal').value = session?.pointValue ?? '';
+  document.getElementById('input-session-point-value-modal').value = session?._storedPointValue ?? session?.pointValue ?? '';
 
   // Visa gruppkod
   const codeRow = document.getElementById('session-settings-group-code-row');
@@ -1817,7 +1817,7 @@ async function handleSaveSessionSettings() {
 
   await updateSessionMeta(state.groupCode, state.activeSessionId, {
     name: nameVal || null,
-    pointValue: pointValue ?? null
+    _storedPointValue: pointValue ?? null
   });
 
   closeModal('modal-session-settings');
