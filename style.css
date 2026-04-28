@@ -1975,8 +1975,7 @@ input[type="number"]::-webkit-outer-spin-button {
     inset 0 1px 0 rgba(255,255,255,0.6);
   overflow: hidden;
   padding: 10px 0 6px;
-  min-height: 60px;
-  flex: 1 0 auto;
+  min-height: 100%;
 }
 
 /* Spiral-hål */
@@ -2122,8 +2121,6 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 0 16px calc(var(--nav-height) + 60px + env(safe-area-inset-bottom));
   -webkit-overflow-scrolling: touch;
   position: relative;
-  display: flex;
-  flex-direction: column;
   touch-action: pan-y;
 }
 
