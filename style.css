@@ -1179,7 +1179,12 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .btn-unit-toggle-inline {
   display: none;
-  flex-shrink: 0;
+  position: sticky;
+  bottom: calc(var(--nav-height) + 60px + 10px);
+  align-self: flex-end;
+  margin-top: -36px;
+  margin-right: 10px;
+  z-index: 5;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -1973,7 +1978,7 @@ input[type="number"]::-webkit-outer-spin-button {
   overflow: hidden;
   padding: 10px 0 6px;
   min-height: 60px;
-  flex: 1;
+  flex: 1 0 auto;
 }
 
 /* Spiral-hål */
