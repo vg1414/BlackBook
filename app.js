@@ -1783,14 +1783,8 @@ async function handleToggleUnit() {
         _storedPointValue: stored
       });
     } else {
-      const input = prompt('Hur många kr är ett poäng värt?');
-      const pv = parseFloat(input);
-      if (!isNaN(pv) && pv > 0) {
-        await updateSessionMeta(state.groupCode, state.activeSessionId, {
-          pointValue: pv,
-          _storedPointValue: pv
-        });
-      }
+      showToast('Ange kr-värde i sessionsinställningar');
+      openSessionSettingsModal();
     }
   }
 }
@@ -1815,10 +1809,17 @@ async function handleSaveSessionSettings() {
   const pvRaw = parseFloat(document.getElementById('input-session-point-value-modal').value);
   const pointValue = isNaN(pvRaw) || pvRaw <= 0 ? null : pvRaw;
 
-  await updateSessionMeta(state.groupCode, state.activeSessionId, {
+  const session = state.sessions[state.activeSessionId];
+  const currentlyKrMode = !!(session?.pointValue);
+  const fields = {
     name: nameVal || null,
     _storedPointValue: pointValue ?? null
-  });
+  };
+  if (currentlyKrMode) {
+    fields.pointValue = pointValue ?? null;
+  }
+
+  await updateSessionMeta(state.groupCode, state.activeSessionId, fields);
 
   closeModal('modal-session-settings');
   showToast('Sparat!');
