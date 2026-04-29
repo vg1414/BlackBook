@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-29 (uppdatering 58)
+- UX: Tog bort spade-ikonen (♠) och "Black Book"-titeln från lobby-skärmen – bokbilden räcker
+
 ## 2026-04-29 (uppdatering 57)
 - Ny: Splash screen med bokbild och "Black Book"-titel visas i ~2 sekunder vid appstart
 - Ny: Hero-bild av boken visas ovanför loggan på lobby-skärmen med guld-glow och animation
