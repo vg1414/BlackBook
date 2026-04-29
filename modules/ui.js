@@ -429,6 +429,11 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
   const streaks = {};
   playerIds.forEach(pid => { streaks[pid] = { current: 0, max: 0 }; });
 
+  // Antal vunna/förlorade rundor per spelare
+  const winsCount = {};
+  const lossCount = {};
+  playerIds.forEach(pid => { winsCount[pid] = 0; lossCount[pid] = 0; });
+
   // Topp- och bottennotering per spelare (löpande saldo)
   const peakBalance = {};
   const lowestBalance = {};
@@ -442,9 +447,11 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
       const amt = roundAmounts[pid] ?? 0;
       if (amt < 0) {
         streaks[pid].current = 0;
+        lossCount[pid]++;
       } else if (amt > 0) {
         streaks[pid].current++;
         if (streaks[pid].current > streaks[pid].max) streaks[pid].max = streaks[pid].current;
+        winsCount[pid]++;
       }
     });
     round.forEach(e => {
@@ -561,6 +568,7 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
                 <span class="sd-pstat-name">${escHtml(p.name)}</span>
               </div>
               <div class="sd-pstat-chips">
+                ${winsCount[pid] > 0 || lossCount[pid] > 0 ? `<span class="sd-chip"><span class="sd-wl-win">${winsCount[pid]}W</span> / <span class="sd-wl-loss">${lossCount[pid]}L</span></span>` : ''}
                 ${st?.max > 0 ? `<span class="sd-chip">🔥 ${st.max} streak</span>` : ''}
                 ${br?.amount > -Infinity && br?.amount > 0 ? `<span class="sd-chip">⚡ Bästa runda: ${fmt(br.amount)}</span>` : ''}
               </div>

@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-29 (uppdatering 60)
+- Ny: Antal vunna (W) och förlorade (L) rundor visas per spelare under "Per spelare" i sessionsstats
+
 ## 2026-04-29 (uppdatering 59)
 - Fix: Bokbilden på lobby-skärmen avskärs inte längre i toppen
 - Fix: Glödet runt bokbilden tonar nu ut mjukt istället för att klippas abrupt
