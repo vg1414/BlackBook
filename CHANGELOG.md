@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-29 (uppdatering 59)
+- Fix: Bokbilden på lobby-skärmen avskärs inte längre i toppen
+- Fix: Glödet runt bokbilden tonar nu ut mjukt istället för att klippas abrupt
+- Fix: "Made by: David Hefner" visas nu längst ner vid scroll, inte fast på skärmen
+
 ## 2026-04-29 (uppdatering 58)
 - UX: Tog bort spade-ikonen (♠) och "Black Book"-titeln från lobby-skärmen – bokbilden räcker
 

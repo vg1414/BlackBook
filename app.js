@@ -78,13 +78,6 @@ function init() {
     }, 1800);
   }
 
-  // Signature
-  document.addEventListener('DOMContentLoaded', () => {
-    const sig = document.createElement('div');
-    sig.className = 'app-signature';
-    sig.textContent = 'Made by: David Hefner';
-    document.body.appendChild(sig);
-  });
 }
 
 // ===== LOCALSTORAGE (multi-grupp) =====
