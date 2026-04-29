@@ -5,7 +5,13 @@
       "Bash(python -c \"print\\(''ok''\\)\")",
       "Bash(py -c \"print\\(''ok''\\)\")",
       "mcp__github__push_files",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Read(//c/Users/David/.claude/**)",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\David\\.claude"
     ]
   }
 }

@@ -69,6 +69,15 @@ function init() {
   bindEvents();
   registerSW();
 
+  // Splash screen
+  const splash = document.getElementById('splash-screen');
+  if (splash) {
+    setTimeout(() => {
+      splash.classList.add('splash-hiding');
+      splash.addEventListener('animationend', () => splash.remove(), { once: true });
+    }, 1800);
+  }
+
   // Signature
   document.addEventListener('DOMContentLoaded', () => {
     const sig = document.createElement('div');

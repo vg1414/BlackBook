@@ -1,3 +1,68 @@
+/* ===== SPLASH SCREEN ===== */
+#splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: splashFadeIn 0.5s ease forwards;
+}
+
+#splash-screen.splash-hiding {
+  animation: splashFadeOut 0.7s var(--ease-out-expo) forwards;
+}
+
+.splash-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.splash-book {
+  width: 280px;
+  max-width: 80vw;
+  filter: drop-shadow(0 0 40px rgba(212, 175, 55, 0.5)) drop-shadow(0 16px 32px rgba(0,0,0,0.7));
+  animation: splashBookFloat 0.6s var(--spring) 0.1s both;
+}
+
+.splash-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 32px;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 4px;
+  background: linear-gradient(90deg, #b8922a 0%, #f5e070 30%, #d4af37 50%, #f5e070 70%, #c9a227 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 300% auto;
+  animation: splashTitleFade 0.6s var(--ease-out-expo) 0.35s both, shimmer 4s ease-in-out 1s infinite;
+}
+
+@keyframes splashFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes splashFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; pointer-events: none; }
+}
+
+@keyframes splashBookFloat {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.92); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes splashTitleFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ===== RESET & BASE ===== */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -128,6 +193,23 @@ body {
   letter-spacing: 1px;
   animation: shimmer 5s ease-in-out infinite;
   color: transparent;
+}
+
+/* ===== LOBBY BOOK IMAGE ===== */
+.lobby-book-img {
+  display: block;
+  width: 220px;
+  max-width: 70vw;
+  margin: 0 auto -8px;
+  filter: drop-shadow(0 8px 24px rgba(212, 175, 55, 0.35)) drop-shadow(0 4px 12px rgba(0,0,0,0.6));
+  opacity: 0;
+  animation: lobbyBookEnter 0.8s var(--spring) 0.05s forwards;
+}
+
+@keyframes lobbyBookEnter {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.93); }
+  65%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* ===== LOBBY ===== */

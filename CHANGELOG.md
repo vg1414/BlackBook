@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-29 (uppdatering 57)
+- Ny: Splash screen med bokbild och "Black Book"-titel visas i ~2 sekunder vid appstart
+- Ny: Hero-bild av boken visas ovanför loggan på lobby-skärmen med guld-glow och animation
+
 ## 2026-04-26 (uppdatering 56)
 - Fix: Sessionens namn förifylls nu korrekt i sessionsinställningar (saknades i lokalt state-cache)
 - Fix: Poängvärde förifylls nu korrekt i sessionsinställningar (läste fel fält – pointValue istället för _storedPointValue)
