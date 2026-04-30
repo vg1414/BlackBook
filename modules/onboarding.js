@@ -64,7 +64,7 @@ function showDemoSession() {
         <div class="header-actions">
           <button class="btn-icon btn-icon--chart" id="ob-demo-chart">📈</button>
           <button class="btn-icon" id="ob-demo-settings">⚙</button>
-          <button class="btn-text btn-danger" style="opacity:.4;pointer-events:none">Avsluta</button>
+          <button class="btn-text btn-danger" id="ob-demo-end" style="pointer-events:none">Avsluta session</button>
         </div>
       </header>
       <div class="screen-content session-screen-content">
@@ -202,6 +202,13 @@ const STEPS = [
     icon: '⚙',
     title: 'Inställningar & gruppkod',
     body: 'Här hittar du sessionsinställningar och gruppkoden. Kopiera och dela länken så kan vänner gå med direkt.',
+  },
+  {
+    selector: '#ob-demo-end',
+    position: 'below',
+    icon: '🏁',
+    title: 'Avsluta session',
+    body: 'När sessionen är slut trycker du här. Resultaten låses och saldon uppdateras – inga fler ändringar kan göras.',
     onLeave: hideDemoSession,
   },
   // ── Navigering ──
