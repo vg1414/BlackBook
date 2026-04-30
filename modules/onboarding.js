@@ -26,13 +26,101 @@ function isGroupOnboarded(groupCode, playerId) {
   return getOnboardedKeys().includes(makeKey(groupCode, playerId));
 }
 
+// ── Demo session overlay ──────────────────────────────────────────────────────
+
+const DEMO_NAMES = ['Anna','Björn','Cecilia','David','Erik','Fanny','Gustav','Hanna'];
+const DEMO_COLORS = ['#4a9eff','#a855f7','#f97316','#22c55e','#ec4899','#14b8a6','#f59e0b','#6366f1'];
+
+let demoEl = null;
+
+function randomDemoPlayers(count = 3) {
+  const shuffled = [...DEMO_NAMES].sort(() => Math.random() - 0.5).slice(0, count);
+  return shuffled.map((name, i) => ({ name, color: DEMO_COLORS[i % DEMO_COLORS.length] }));
+}
+
+function showDemoSession() {
+  if (demoEl) return;
+  const players = randomDemoPlayers(3);
+
+  const playerRows = players.map((p, i) => `
+    <div class="quick-player-row" data-demo-i="${i}">
+      <div class="player-avatar" style="background:${p.color}20;color:${p.color}">${p.name.charAt(0)}</div>
+      <span class="quick-player-name">${p.name}</span>
+      <div class="amount-input-wrap">
+        <button class="btn-sign-toggle demo-sign">+</button>
+        <input class="amount-input" type="number" placeholder="0" inputmode="decimal" min="0" readonly />
+      </div>
+    </div>
+  `).join('');
+
+  demoEl = document.createElement('div');
+  demoEl.id = 'ob-demo-session';
+  demoEl.innerHTML = `
+    <div class="ob-demo-inner">
+      <header class="app-header">
+        <button class="btn-icon" style="opacity:.4;pointer-events:none">←</button>
+        <h1 class="header-title">Demo-session</h1>
+        <div class="header-actions">
+          <button class="btn-icon btn-icon--chart" id="ob-demo-chart">📈</button>
+          <button class="btn-icon" id="ob-demo-settings">⚙</button>
+          <button class="btn-text btn-danger" style="opacity:.4;pointer-events:none">Avsluta</button>
+        </div>
+      </header>
+      <div class="screen-content session-screen-content">
+        <div class="session-sticky-top">
+          <div id="ob-demo-players" class="quick-players-list">${playerRows}</div>
+          <div class="sum-row">
+            <span class="sum-label">Summa:</span>
+            <span id="ob-demo-sum" class="sum-value">0 p</span>
+          </div>
+          <div class="register-row">
+            <button id="ob-demo-register" class="btn btn-primary btn-register">Registrera</button>
+          </div>
+        </div>
+        <div class="session-scroll-area">
+          <div class="session-rounds-list">
+            <div class="round-entry">
+              <span class="round-label">Rond 1</span>
+              <span class="round-chips">
+                <span class="chip chip--pos">Anna +20</span>
+                <span class="chip chip--neg">Björn −10</span>
+                <span class="chip chip--neg">Cecilia −10</span>
+              </span>
+              <button class="btn-undo" id="ob-demo-undo">↩ Ångra</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(demoEl);
+
+  // Prevent inputs from doing anything real
+  demoEl.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('keydown', e => e.preventDefault());
+  });
+  demoEl.querySelectorAll('.demo-sign').forEach(btn => {
+    btn.addEventListener('click', e => e.stopPropagation());
+  });
+
+  requestAnimationFrame(() => demoEl.classList.add('ob-demo-visible'));
+}
+
+function hideDemoSession() {
+  if (!demoEl) return;
+  demoEl.classList.remove('ob-demo-visible');
+  demoEl.addEventListener('transitionend', () => { demoEl?.remove(); demoEl = null; }, { once: true });
+}
+
+// ── Steps ─────────────────────────────────────────────────────────────────────
+
 const STEPS = [
   {
     selector: null,
     position: 'center',
     icon: '♠',
     title: 'Välkommen till Black Book',
-    body: 'Gruppens skuldboken. Här håller vi koll på vem som är skyldig vem – alltid uppdaterat i realtid.',
+    body: 'Gruppens skuldbok. Här håller vi koll på vem som är skyldig vem – alltid uppdaterat i realtid.',
   },
   {
     selector: '#balances-list',
@@ -42,11 +130,11 @@ const STEPS = [
     body: 'Här ser du varje spelares nettosaldo. Grönt = du har pengar att få. Rött = du är skyldig.',
   },
   {
-    selector: '#section-settlements',
-    position: 'below',
+    selector: null,
+    position: 'center',
     icon: '💸',
     title: 'Uppgörelse',
-    body: 'Appen räknar ut så få betalningar som möjligt. Tryck här för att se vem som betalar vem – och bekräfta när det är gjort.',
+    body: 'Appen räknar ut så få betalningar som möjligt. Tryck på uppgörelseknappen för att se vem som betalar vem – och bekräfta när det är gjort.',
   },
   {
     selector: '#fab-new-session',
@@ -62,13 +150,45 @@ const STEPS = [
     title: 'Poäng eller kronor?',
     body: 'Sätt ett poängvärde (t.ex. 10 kr) så räknar appen om alla poäng till kronor. Lämnar du det tomt visas bara poäng (p).',
   },
+  // ── Demo session steg ──
   {
-    selector: '.nav-btn[data-screen="session"]',
-    position: 'above',
-    icon: '♠',
-    title: 'Aktiv session',
-    body: 'Under en session registrerar du ronder. Ange vad varje spelare vinner eller förlorar – summan måste alltid bli noll.',
+    selector: '#ob-demo-players',
+    position: 'below',
+    icon: '✍️',
+    title: 'Registrera en rond',
+    body: 'Ange vad varje spelare vinner (+) eller förlorar (−) i ronden. Tryck på +/− för att växla tecken.',
+    onEnter: showDemoSession,
   },
+  {
+    selector: '#ob-demo-sum',
+    position: 'above',
+    icon: '⚖',
+    title: 'Summan måste bli 0',
+    body: 'Vinster och förluster ska alltid ta ut varandra. Appen varnar om summan inte stämmer.',
+  },
+  {
+    selector: '#ob-demo-undo',
+    position: 'above',
+    icon: '↩',
+    title: 'Ångra',
+    body: 'Tryckte du fel? Ångra-knappen tar bort den senaste ronden direkt.',
+  },
+  {
+    selector: '#ob-demo-chart',
+    position: 'below',
+    icon: '📈',
+    title: 'Sessionsgraf',
+    body: 'Se hur spelarna ligger till under sessionens gång – stapeldiagram med ackumulerade resultat.',
+  },
+  {
+    selector: '#ob-demo-settings',
+    position: 'below',
+    icon: '⚙',
+    title: 'Inställningar & gruppkod',
+    body: 'Här hittar du sessionsinställningar och gruppkoden. Kopiera och dela länken så kan vänner gå med direkt.',
+    onLeave: hideDemoSession,
+  },
+  // ── Navigering ──
   {
     selector: '.nav-btn[data-screen="stats"]',
     position: 'above',
@@ -104,7 +224,6 @@ export function startOnboarding(groupCode, playerId) {
 }
 
 function buildOverlay() {
-  // Cleanup any existing
   destroyOverlay();
 
   overlayEl = document.createElement('div');
@@ -134,7 +253,6 @@ function buildOverlay() {
   overlayEl.querySelector('.ob-btn-skip').addEventListener('click', finishOnboarding);
   overlayEl.querySelector('.ob-btn-next').addEventListener('click', nextStep);
 
-  // Dots
   stepDots.innerHTML = STEPS.map((_, i) =>
     `<span class="ob-dot" data-i="${i}"></span>`
   ).join('');
@@ -142,18 +260,22 @@ function buildOverlay() {
     dot.addEventListener('click', () => showStep(+dot.dataset.i));
   });
 
-  // Animate in
   requestAnimationFrame(() => {
     requestAnimationFrame(() => overlayEl.classList.add('ob-visible'));
   });
 }
 
 function showStep(index) {
+  const prevStep = STEPS[currentStep];
   currentStep = index;
   const step = STEPS[index];
   const isLast = index === STEPS.length - 1;
 
-  // Update text content
+  // onLeave for previous step
+  if (prevStep?.onLeave) prevStep.onLeave();
+  // onEnter for new step
+  if (step.onEnter) step.onEnter();
+
   overlayEl.querySelector('.ob-icon').textContent = step.icon;
   overlayEl.querySelector('.ob-step-count').textContent = `${index + 1} / ${STEPS.length}`;
   overlayEl.querySelector('.ob-title').textContent = step.title;
@@ -164,22 +286,23 @@ function showStep(index) {
   if (isLast) nextBtn.classList.add('ob-btn-next--last');
   else nextBtn.classList.remove('ob-btn-next--last');
 
-  // Dots
   stepDots.querySelectorAll('.ob-dot').forEach((dot, i) => {
     dot.classList.toggle('ob-dot--active', i === index);
   });
 
-  // Pre-size tooltip off-screen so positionStep can measure real height
-  tooltipEl.style.cssText = 'position:fixed; left:-9999px; top:-9999px; width:' +
-    Math.min(320, window.innerWidth * 0.92) + 'px; visibility:hidden;';
+  const preW = Math.min(320, window.innerWidth * 0.92);
+  tooltipEl.style.cssText = `position:fixed; top:0; left:0; width:${preW}px; visibility:hidden;`;
 
-  // Wait one frame for reflow, then measure + position + animate
-  requestAnimationFrame(() => {
-    positionStep(step);
-    tooltipEl.classList.remove('ob-tooltip-enter');
-    void tooltipEl.offsetWidth;
-    tooltipEl.classList.add('ob-tooltip-enter');
-  });
+  // If onEnter just created the demo, wait an extra frame for it to appear in DOM
+  const delay = step.onEnter ? 60 : 0;
+  setTimeout(() => {
+    requestAnimationFrame(() => {
+      positionStep(step);
+      tooltipEl.classList.remove('ob-tooltip-enter');
+      void tooltipEl.offsetWidth;
+      tooltipEl.classList.add('ob-tooltip-enter');
+    });
+  }, delay);
 }
 
 function positionStep(step) {
@@ -187,13 +310,15 @@ function positionStep(step) {
 
   if (!target || step.position === 'center') {
     spotlightEl.style.opacity = '0';
+    tooltipEl.dataset.arrow = 'none';
     tooltipEl.style.cssText = `
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      max-width: min(340px, 92vw);
-      width: 92vw;
+      top: 0; left: 0; right: 0; bottom: 0;
+      margin: auto;
+      width: calc(100vw - 32px);
+      max-width: 340px;
+      height: fit-content;
+      visibility: visible;
     `;
     return;
   }
@@ -222,13 +347,11 @@ function positionStep(step) {
   let top;
   let arrowPos = 'none';
 
-  const spaceBelow = vh - rect.bottom - margin;
   const spaceAbove = rect.top - margin;
 
   if (step.position === 'below' || spaceAbove < tooltipH + gap) {
     top = rect.bottom + gap;
     arrowPos = 'top';
-    // If it still overflows the bottom, center it vertically instead
     if (top + tooltipH > vh - margin) {
       top = Math.max(margin, (vh - tooltipH) / 2);
       arrowPos = 'none';
@@ -242,9 +365,7 @@ function positionStep(step) {
     }
   }
 
-  // Clamp horizontally
   left = Math.max(margin, Math.min(left, vw - tooltipW - margin));
-  // Clamp vertically
   top = Math.max(margin, Math.min(top, vh - tooltipH - margin));
 
   tooltipEl.dataset.arrow = arrowPos;
@@ -266,6 +387,8 @@ function nextStep() {
 }
 
 function finishOnboarding() {
+  // Ensure demo is cleaned up if user skips mid-demo
+  hideDemoSession();
   markGroupOnboarded(activeGroupCode, activePlayerId);
   overlayEl.classList.add('ob-hiding');
   overlayEl.addEventListener('animationend', destroyOverlay, { once: true });

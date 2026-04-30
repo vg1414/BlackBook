@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-30 (uppdatering 65)
+- Ny: onboarding visar demo-session (5 steg) med slumpmässiga spelare – registrering, nollsumma, ångra, graf, inställningar
+- Fix: tooltip-pil nollställs korrekt i center-läge
+- Fix: "skuldboken" → "skuldbok"
+
 ## 2026-04-30 (uppdatering 64)
 - Fix: onboarding-tooltip mäter nu höjd efter reflow (requestAnimationFrame) så positionering blir korrekt på mobil
 
