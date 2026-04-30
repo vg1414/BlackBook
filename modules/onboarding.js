@@ -441,3 +441,188 @@ function destroyOverlay() {
   spotlightEl = null;
   tooltipEl = null;
 }
+
+// ── Lobby guide ───────────────────────────────────────────────────────────────
+
+const LOBBY_GUIDE_KEY = 'blackbook_lobby_guided_v1';
+
+const LOBBY_STEPS = [
+  {
+    selector: null,
+    position: 'center',
+    icon: '♠',
+    title: 'Välkommen till Black Book',
+    body: 'Skuldboken för din spelgrupp. Håll koll på vem som är skyldig vem – i realtid på alla enheter.',
+  },
+  {
+    selector: '#btn-create',
+    position: 'above',
+    icon: '✦',
+    title: 'Skapa en grupp',
+    body: 'Är du den som samlar gruppen? Skapa en ny grupp så får du en unik gruppkod.',
+  },
+  {
+    selector: '#btn-join',
+    position: 'above',
+    icon: '→',
+    title: 'Gå med i en grupp',
+    body: 'Har du fått en gruppkod? Skriv in den här och välj ditt namn för att ansluta.',
+  },
+  {
+    selector: null,
+    position: 'center',
+    icon: '🔑',
+    title: 'Dela gruppkoden',
+    body: 'Skicka gruppkoden till alla som ska vara med. De ansluter på sina egna enheter och ser allt i realtid.',
+  },
+];
+
+let lobbyOverlayEl = null;
+let lobbyTooltipEl = null;
+let lobbySpotlightEl = null;
+let lobbyDots = null;
+let lobbyStep = 0;
+
+export function startLobbyGuide() {
+  if (localStorage.getItem(LOBBY_GUIDE_KEY)) return;
+  lobbyStep = 0;
+  buildLobbyOverlay();
+  showLobbyStep(0);
+}
+
+function buildLobbyOverlay() {
+  if (lobbyOverlayEl) { lobbyOverlayEl.remove(); lobbyOverlayEl = null; }
+
+  lobbyOverlayEl = document.createElement('div');
+  lobbyOverlayEl.className = 'ob-overlay';
+  lobbyOverlayEl.innerHTML = `
+    <div class="ob-spotlight"></div>
+    <div class="ob-tooltip">
+      <div class="ob-tooltip-header">
+        <span class="ob-icon"></span>
+        <span class="ob-step-count"></span>
+      </div>
+      <h3 class="ob-title"></h3>
+      <p class="ob-body"></p>
+      <div class="ob-footer">
+        <div class="ob-dots"></div>
+        <div class="ob-nav-row">
+          <button class="ob-btn-skip">Hoppa över</button>
+          <div class="ob-nav-btns">
+            <button class="ob-btn-prev">← Föregående</button>
+            <button class="ob-btn-next">Nästa →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(lobbyOverlayEl);
+  lobbySpotlightEl = lobbyOverlayEl.querySelector('.ob-spotlight');
+  lobbyTooltipEl = lobbyOverlayEl.querySelector('.ob-tooltip');
+  lobbyDots = lobbyOverlayEl.querySelector('.ob-dots');
+
+  lobbyOverlayEl.querySelector('.ob-btn-skip').addEventListener('click', finishLobbyGuide);
+  lobbyOverlayEl.querySelector('.ob-btn-prev').addEventListener('click', () => { if (lobbyStep > 0) showLobbyStep(lobbyStep - 1); });
+  lobbyOverlayEl.querySelector('.ob-btn-next').addEventListener('click', () => {
+    if (lobbyStep < LOBBY_STEPS.length - 1) showLobbyStep(lobbyStep + 1);
+    else finishLobbyGuide();
+  });
+
+  lobbyDots.innerHTML = LOBBY_STEPS.map((_, i) => `<span class="ob-dot" data-i="${i}"></span>`).join('');
+  lobbyDots.querySelectorAll('.ob-dot').forEach(dot => {
+    dot.addEventListener('click', () => showLobbyStep(+dot.dataset.i));
+  });
+
+  requestAnimationFrame(() => requestAnimationFrame(() => lobbyOverlayEl.classList.add('ob-visible')));
+}
+
+function showLobbyStep(index) {
+  lobbyStep = index;
+  const step = LOBBY_STEPS[index];
+  const isLast = index === LOBBY_STEPS.length - 1;
+
+  lobbyOverlayEl.querySelector('.ob-icon').textContent = step.icon;
+  lobbyOverlayEl.querySelector('.ob-step-count').textContent = `${index + 1} / ${LOBBY_STEPS.length}`;
+  lobbyOverlayEl.querySelector('.ob-title').textContent = step.title;
+  lobbyOverlayEl.querySelector('.ob-body').textContent = step.body;
+
+  const nextBtn = lobbyOverlayEl.querySelector('.ob-btn-next');
+  nextBtn.textContent = isLast ? 'Kom igång ✓' : 'Nästa →';
+  if (isLast) nextBtn.classList.add('ob-btn-next--last');
+  else nextBtn.classList.remove('ob-btn-next--last');
+
+  lobbyOverlayEl.querySelector('.ob-btn-prev').style.visibility = index === 0 ? 'hidden' : 'visible';
+
+  lobbyDots.querySelectorAll('.ob-dot').forEach((dot, i) => {
+    dot.classList.toggle('ob-dot--active', i === index);
+  });
+
+  const preW = Math.min(320, window.innerWidth * 0.92);
+  lobbyTooltipEl.style.cssText = `position:fixed; top:0; left:0; width:${preW}px; visibility:hidden;`;
+
+  requestAnimationFrame(() => {
+    positionLobbyStep(step);
+    lobbyTooltipEl.classList.remove('ob-tooltip-enter');
+    void lobbyTooltipEl.offsetWidth;
+    lobbyTooltipEl.classList.add('ob-tooltip-enter');
+  });
+}
+
+function positionLobbyStep(step) {
+  const target = step.selector ? document.querySelector(step.selector) : null;
+
+  if (!target || step.position === 'center') {
+    lobbySpotlightEl.style.opacity = '0';
+    lobbyTooltipEl.dataset.arrow = 'none';
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const w = Math.min(340, vw - 32);
+    const h = lobbyTooltipEl.offsetHeight || 180;
+    lobbyTooltipEl.style.cssText = `
+      position:fixed; left:${Math.round((vw-w)/2)}px; top:${Math.round((vh-h)/2)}px;
+      width:${w}px; transform:none; visibility:visible;
+    `;
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
+  const pad = 10;
+  lobbySpotlightEl.style.cssText = `
+    opacity:1; left:${rect.left-pad}px; top:${rect.top-pad}px;
+    width:${rect.width+pad*2}px; height:${rect.height+pad*2}px; border-radius:12px;
+  `;
+
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const margin = 12, gap = 14;
+  const tooltipW = Math.min(320, vw * 0.92);
+  const tooltipH = lobbyTooltipEl.offsetHeight || 180;
+  let left = rect.left + rect.width / 2 - tooltipW / 2;
+  let top, arrowPos;
+
+  if (step.position === 'below' || rect.top - margin < tooltipH + gap) {
+    top = rect.bottom + gap;
+    arrowPos = 'top';
+    if (top + tooltipH > vh - margin) { top = Math.max(margin, (vh-tooltipH)/2); arrowPos = 'none'; }
+  } else {
+    top = rect.top - tooltipH - gap;
+    arrowPos = 'bottom';
+    if (top < margin) { top = rect.bottom + gap; arrowPos = 'top'; }
+  }
+
+  left = Math.max(margin, Math.min(left, vw - tooltipW - margin));
+  top  = Math.max(margin, Math.min(top,  vh - tooltipH - margin));
+
+  lobbyTooltipEl.dataset.arrow = arrowPos;
+  lobbyTooltipEl.style.cssText = `
+    position:fixed; left:${left}px; top:${top}px; width:${tooltipW}px; transform:none;
+  `;
+}
+
+function finishLobbyGuide() {
+  localStorage.setItem(LOBBY_GUIDE_KEY, '1');
+  lobbyOverlayEl.classList.add('ob-hiding');
+  lobbyOverlayEl.addEventListener('animationend', () => {
+    lobbyOverlayEl?.remove(); lobbyOverlayEl = null;
+    lobbyTooltipEl = null; lobbySpotlightEl = null;
+  }, { once: true });
+}

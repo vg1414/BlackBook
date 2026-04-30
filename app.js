@@ -21,7 +21,7 @@ import {
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
 import { sekToOre, oreToSek } from './modules/settlement.js';
-import { startOnboarding } from './modules/onboarding.js';
+import { startOnboarding, startLobbyGuide } from './modules/onboarding.js';
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -64,6 +64,7 @@ function init() {
       history.replaceState(null, '', location.pathname);
     } else {
       prefillCode();
+      setTimeout(() => startLobbyGuide(), 600);
     }
   }
 
