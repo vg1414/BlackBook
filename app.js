@@ -193,6 +193,7 @@ function renderSavedGroups() {
       }
       await connectToGroup();
       showToast(`Välkommen tillbaka, ${saved.playerName}!`);
+      setTimeout(() => startOnboarding(saved.groupCode, saved.playerId), 800);
     });
   });
 }
