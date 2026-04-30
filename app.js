@@ -1087,7 +1087,7 @@ async function handleJoin() {
   saveGroup(code, playerId, playerName, joinMeta?.createdAt ?? null, joinGroupName);
   await connectToGroup();
   showToast(`Välkommen, ${playerName}!`);
-  setTimeout(() => startOnboarding(code), 800);
+  setTimeout(() => startOnboarding(code, state.playerId), 800);
 }
 
 async function handleCreate() {
@@ -1118,7 +1118,7 @@ async function handleConfirmCreateName() {
   closeModal('modal-create-name');
   await connectToGroup();
   showToast(`Grupp skapad! Kod: ${code}`);
-  setTimeout(() => startOnboarding(code), 800);
+  setTimeout(() => startOnboarding(code, state.playerId), 800);
 }
 
 function handleLeaveGroup() {

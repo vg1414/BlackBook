@@ -2,23 +2,28 @@
  * onboarding.js – Tooltip-rundtur för nya gruppmedlemmar
  */
 
-const STORAGE_KEY = 'blackbook_onboarded_groups';
+const STORAGE_KEY = 'blackbook_onboarded_keys';
 
-function getOnboardedGroups() {
+function getOnboardedKeys() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
   catch { return []; }
 }
 
-function markGroupOnboarded(groupCode) {
-  const groups = getOnboardedGroups();
-  if (!groups.includes(groupCode)) {
-    groups.push(groupCode);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+function makeKey(groupCode, playerId) {
+  return `${groupCode}:${playerId}`;
+}
+
+function markGroupOnboarded(groupCode, playerId) {
+  const keys = getOnboardedKeys();
+  const key = makeKey(groupCode, playerId);
+  if (!keys.includes(key)) {
+    keys.push(key);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
   }
 }
 
-function isGroupOnboarded(groupCode) {
-  return getOnboardedGroups().includes(groupCode);
+function isGroupOnboarded(groupCode, playerId) {
+  return getOnboardedKeys().includes(makeKey(groupCode, playerId));
 }
 
 const STEPS = [
@@ -86,11 +91,13 @@ let tooltipEl = null;
 let spotlightEl = null;
 let stepDots = null;
 let activeGroupCode = null;
+let activePlayerId = null;
 let resizeObserver = null;
 
-export function startOnboarding(groupCode) {
-  if (isGroupOnboarded(groupCode)) return;
+export function startOnboarding(groupCode, playerId) {
+  if (isGroupOnboarded(groupCode, playerId)) return;
   activeGroupCode = groupCode;
+  activePlayerId = playerId;
   currentStep = 0;
   buildOverlay();
   showStep(0);
@@ -243,7 +250,7 @@ function nextStep() {
 }
 
 function finishOnboarding() {
-  markGroupOnboarded(activeGroupCode);
+  markGroupOnboarded(activeGroupCode, activePlayerId);
   overlayEl.classList.add('ob-hiding');
   overlayEl.addEventListener('animationend', destroyOverlay, { once: true });
 }
