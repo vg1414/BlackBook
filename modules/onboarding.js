@@ -169,13 +169,17 @@ function showStep(index) {
     dot.classList.toggle('ob-dot--active', i === index);
   });
 
-  // Tooltip entrance animation
-  tooltipEl.classList.remove('ob-tooltip-enter');
-  void tooltipEl.offsetWidth;
-  tooltipEl.classList.add('ob-tooltip-enter');
+  // Pre-size tooltip off-screen so positionStep can measure real height
+  tooltipEl.style.cssText = 'position:fixed; left:-9999px; top:-9999px; width:' +
+    Math.min(320, window.innerWidth * 0.92) + 'px; visibility:hidden;';
 
-  // Position spotlight + tooltip
-  positionStep(step);
+  // Wait one frame for reflow, then measure + position + animate
+  requestAnimationFrame(() => {
+    positionStep(step);
+    tooltipEl.classList.remove('ob-tooltip-enter');
+    void tooltipEl.offsetWidth;
+    tooltipEl.classList.add('ob-tooltip-enter');
+  });
 }
 
 function positionStep(step) {
@@ -212,12 +216,7 @@ function positionStep(step) {
   const gap = 14;
 
   const tooltipW = Math.min(320, vw * 0.92);
-  // Set width first so the browser can measure actual rendered height
-  tooltipEl.style.width = `${tooltipW}px`;
-  tooltipEl.style.position = 'fixed';
-  tooltipEl.style.visibility = 'hidden';
   const tooltipH = tooltipEl.offsetHeight || 180;
-  tooltipEl.style.visibility = '';
 
   let left = rect.left + rect.width / 2 - tooltipW / 2;
   let top;

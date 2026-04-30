@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-30 (uppdatering 64)
+- Fix: onboarding-tooltip mäter nu höjd efter reflow (requestAnimationFrame) så positionering blir korrekt på mobil
+
 ## 2026-04-30 (uppdatering 63)
 - Fix: onboarding-tooltip mobilanpassad – mäter faktisk höjd, clampar vertikalt, centreras om det inte finns plats
 
