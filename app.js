@@ -766,7 +766,7 @@ function bindEvents() {
   });
 
   // Koppla chart-callback för session-detail-modalen
-  setOpenChartCallback((sessionId) => handleOpenChart(sessionId));
+  setOpenChartCallback((sessionId) => handleOpenChart(sessionId, true));
 
   // Session back / close / delete / chart / settings
   document.getElementById('btn-back-dashboard').addEventListener('click', () => { showScreen('dashboard'); updateUnitToggleBtn(); });
@@ -1354,7 +1354,7 @@ function initChartFromPending() {
   requestAnimationFrame(animate);
 }
 
-function handleOpenChart(sessionId) {
+function handleOpenChart(sessionId, showChartDirectly = false) {
   if (!sessionId) sessionId = state.activeSessionId;
   if (!sessionId) { showToast('Ingen aktiv session'); return; }
 
@@ -1457,11 +1457,17 @@ function handleOpenChart(sessionId) {
   pendingChartData = { labels, datasets, unitLabel };
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
+  closeModal('modal-session-detail');
   openModal('modal-chart');
 
-  // Öppna alltid på stats-panelen
-  document.getElementById('chart-tab-chart').classList.add('hidden');
-  document.getElementById('chart-tab-stats').classList.remove('hidden');
+  if (showChartDirectly) {
+    document.getElementById('chart-tab-chart').classList.remove('hidden');
+    document.getElementById('chart-tab-stats').classList.add('hidden');
+    requestAnimationFrame(initChartFromPending);
+  } else {
+    document.getElementById('chart-tab-chart').classList.add('hidden');
+    document.getElementById('chart-tab-stats').classList.remove('hidden');
+  }
 
   // Staggerad animation för stats-element (körs efter modalen är synlig)
   if (statsContainer) {
