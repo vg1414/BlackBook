@@ -407,7 +407,7 @@ export function renderSessionDetail(session, entries, players) {
 
 // ===== SESSION STATS HTML BUILDER (shared between detail modal and chart modal) =====
 
-export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointValue, storedPointValue, durationStr, showUnitToggle) {
+export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointValue, storedPointValue, durationStr, showUnitToggle, totalMins = null) {
   // Vinnare (högst total)
   let winner = null, winnerTotal = -Infinity;
   Object.entries(totals).forEach(([pid, val]) => {
@@ -463,6 +463,13 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
     });
   });
 
+  // Snitt per runda per spelare (antal rundor spelaren deltog i)
+  const avgPerRound = {};
+  playerIds.forEach(pid => {
+    const participated = rounds.filter(round => round.some(e => e.playerId === pid)).length;
+    avgPerRound[pid] = participated > 0 ? (totals[pid] || 0) / participated : 0;
+  });
+
   // Rankad spelarlista (sorterad vinnare → förlorare)
   const ranked = playerIds
     .filter(pid => players[pid])
@@ -481,6 +488,16 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
   });
 
   const fmt = (v) => formatPoints(v, pointValue);
+  const fmtAvg = (ore) => {
+    const points = ore / 100;
+    if (pointValue) {
+      const kr = points * pointValue;
+      const sign = kr >= 0 ? '+' : '-';
+      return sign + Math.abs(kr).toFixed(1) + ' kr';
+    }
+    const sign = points >= 0 ? '+' : '-';
+    return sign + Math.abs(points).toFixed(1) + ' p';
+  };
   const compact = !showUnitToggle; // chart-modal-läge = kompakt
 
   return `
@@ -490,6 +507,7 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
         ${showUnitToggle ? `<button class="btn-icon btn-icon--chart" id="btn-detail-chart">📈</button>` : ''}
         <span class="sd-meta-chip">🃏 ${rounds.length} rundor</span>
         <span class="sd-meta-chip">⏱ ${durationStr}</span>
+        ${totalMins !== null && rounds.length > 0 ? `<span class="sd-meta-chip">⏱ ${(totalMins / rounds.length).toFixed(1)} min/runda</span>` : ''}
         ${showUnitToggle && storedPointValue ? `<button class="btn-detail-unit${detailUnitMode === 'kr' ? ' btn-detail-unit-active' : ''}" id="btn-detail-unit-toggle">${detailUnitMode === 'kr' ? 'kr' : 'p'}</button>` : ''}
       </div>
 
@@ -571,6 +589,7 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
                 ${winsCount[pid] > 0 || lossCount[pid] > 0 ? `<span class="sd-chip"><span class="sd-wl-win">${winsCount[pid]}W</span> / <span class="sd-wl-loss">${lossCount[pid]}L</span></span>` : ''}
                 ${st?.max > 0 ? `<span class="sd-chip">🔥 ${st.max} streak</span>` : ''}
                 ${br?.amount > -Infinity && br?.amount > 0 ? `<span class="sd-chip">⚡ Bästa runda: ${fmt(br.amount)}</span>` : ''}
+                ${rounds.length > 0 ? `<span class="sd-chip ${avgPerRound[pid] > 0 ? 'sd-chip--pos' : avgPerRound[pid] < 0 ? 'sd-chip--neg' : ''}">∅ ${fmtAvg(avgPerRound[pid])}/runda</span>` : ''}
               </div>
               <div class="sd-pstat-chips">
                 ${peakBalance[pid] !== null && peakBalance[pid] > 0 ? `<span class="sd-chip sd-chip--pos">▲ Topp: ${fmt(peakBalance[pid])}</span>` : ''}
@@ -598,15 +617,24 @@ function renderSessionDetailBody(session, entries, players, pointValue, storedPo
   }
   const playerIds = session.playerIds ? Object.keys(session.playerIds) : [];
 
-  // Gruppera i rundor (< 500ms isär)
+  // Gruppera i rundor: på roundId om det finns, annars på timestamp (< 500ms isär) för gamla poster
   const rounds = [];
+  const roundIdMap = {};
   let prevTime = null;
   for (const [, e] of sessionEntries) {
-    if (prevTime === null || e.timestamp - prevTime > 500) {
-      rounds.push([]);
+    if (e.roundId) {
+      if (!(e.roundId in roundIdMap)) {
+        roundIdMap[e.roundId] = [];
+        rounds.push(roundIdMap[e.roundId]);
+      }
+      roundIdMap[e.roundId].push(e);
+    } else {
+      if (prevTime === null || e.timestamp - prevTime > 500) {
+        rounds.push([]);
+      }
+      rounds[rounds.length - 1].push(e);
     }
     prevTime = e.timestamp;
-    rounds[rounds.length - 1].push(e);
   }
 
   // Totaler per spelare
@@ -620,14 +648,15 @@ function renderSessionDetailBody(session, entries, players, pointValue, storedPo
   const firstTs = sessionEntries[0]?.[1]?.timestamp;
   const lastTs = sessionEntries[sessionEntries.length - 1]?.[1]?.timestamp;
   let durationStr = '–';
+  let totalMins = null;
   if (firstTs && lastTs && lastTs > firstTs) {
-    const mins = Math.round((lastTs - firstTs) / 60000);
-    durationStr = mins >= 60
-      ? `${Math.floor(mins / 60)}h ${mins % 60}m`
-      : `${mins} min`;
+    totalMins = Math.round((lastTs - firstTs) / 60000);
+    durationStr = totalMins >= 60
+      ? `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`
+      : `${totalMins} min`;
   }
 
-  listEl.innerHTML = buildSessionStatsHTML(rounds, playerIds, players, totals, pointValue, storedPointValue, durationStr, true);
+  listEl.innerHTML = buildSessionStatsHTML(rounds, playerIds, players, totals, pointValue, storedPointValue, durationStr, true, totalMins);
 
   // Koppla 📈-knappen
   const chartBtn = listEl.querySelector('#btn-detail-chart');
@@ -767,15 +796,24 @@ export function renderStats(sessions, players, entries) {
       .filter(e => e.sessionId === id && !e.deleted)
       .sort((a, b) => a.timestamp - b.timestamp);
 
-    // Gruppera i rundor (< 500ms isär)
+    // Gruppera i rundor: på roundId om det finns, annars på timestamp (< 500ms isär) för gamla poster
     const rounds = [];
+    const roundIdMap = {};
     let prevTime = null;
     for (const e of sessionEntries) {
-      if (prevTime === null || e.timestamp - prevTime > 500) {
-        rounds.push([]);
+      if (e.roundId) {
+        if (!(e.roundId in roundIdMap)) {
+          roundIdMap[e.roundId] = [];
+          rounds.push(roundIdMap[e.roundId]);
+        }
+        roundIdMap[e.roundId].push(e);
+      } else {
+        if (prevTime === null || e.timestamp - prevTime > 500) {
+          rounds.push([]);
+        }
+        rounds[rounds.length - 1].push(e);
       }
       prevTime = e.timestamp;
-      rounds[rounds.length - 1].push(e);
     }
 
     const playerTotals = {};
@@ -873,6 +911,8 @@ export function renderStats(sessions, players, entries) {
     Object.entries(playerTotals).forEach(([pid, total]) => {
       if (total > maxTotal) { maxTotal = total; winner = pid; }
     });
+    // If the top result is 0 or negative, no one won — skip streak updates entirely
+    if (!winner || maxTotal <= 0) return;
     Object.keys(playerTotals).forEach(pid => {
       if (!playerStats[pid]) return;
       if (pid === winner) {

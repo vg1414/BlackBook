@@ -206,7 +206,7 @@ export async function getSessions(groupCode) {
 
 // ===== ENTRIES =====
 
-export async function addEntry(groupCode, { sessionId, playerId, amount, type, note = '' }) {
+export async function addEntry(groupCode, { sessionId, playerId, amount, type, note = '', roundId = null }) {
   // amount is always stored as integer (öre/cent)
   const entriesRef = ref(db, `groups/${groupCode}/entries`);
   const newRef = push(entriesRef);
@@ -218,7 +218,8 @@ export async function addEntry(groupCode, { sessionId, playerId, amount, type, n
     timestamp: Date.now(),
     deleted: false,
     deletedAt: null,
-    note
+    note,
+    roundId
   });
 
   // Update denormalized balance atomically

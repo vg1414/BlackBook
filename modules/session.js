@@ -19,16 +19,25 @@ export async function submitQuickResults(groupCode, sessionId, amounts) {
     throw new Error(`Summan måste vara 0. Nuvarande summa: ${totalOre / 100} kr`);
   }
 
-  const promises = entries
-    .filter(([, val]) => sekToOre(val) !== 0)
-    .map(([playerId, val]) =>
-      addEntry(groupCode, {
-        sessionId,
-        playerId,
-        amount: sekToOre(val),
-        type: 'quick'
-      })
-    );
+  const allZero = entries.every(([, val]) => sekToOre(val) === 0);
+
+  // If all values are zero, register every player with amount 0 so the round is recorded.
+  // Otherwise skip zero entries to keep the database clean.
+  const toWrite = allZero
+    ? entries
+    : entries.filter(([, val]) => sekToOre(val) !== 0);
+
+  const roundId = crypto.randomUUID();
+
+  const promises = toWrite.map(([playerId, val]) =>
+    addEntry(groupCode, {
+      sessionId,
+      playerId,
+      amount: sekToOre(val),
+      type: 'quick',
+      roundId
+    })
+  );
 
   await Promise.all(promises);
 }
