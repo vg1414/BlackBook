@@ -41,6 +41,7 @@ function randomDemoPlayers(count = 3) {
 function showDemoSession() {
   if (demoEl) return;
   const players = randomDemoPlayers(3);
+  const [p0, p1, p2] = players;
 
   const playerRows = players.map((p, i) => `
     <div class="quick-player-row" data-demo-i="${i}">
@@ -79,14 +80,21 @@ function showDemoSession() {
         </div>
         <div class="session-scroll-area">
           <div class="session-rounds-list">
-            <div class="round-entry">
-              <span class="round-label">Rond 1</span>
-              <span class="round-chips">
-                <span class="chip chip--pos">Anna +20</span>
-                <span class="chip chip--neg">Björn −10</span>
-                <span class="chip chip--neg">Cecilia −10</span>
-              </span>
-              <button class="btn-undo" id="ob-demo-undo">↩ Ångra</button>
+            <div class="round-row round-latest">
+              <button class="btn-undo-round" id="ob-demo-undo" title="Ångra senaste">↩</button>
+              <span class="round-entry">${p0.name} +20</span>
+              <span class="round-entry">${p1.name} −10</span>
+              <span class="round-entry">${p2.name} −10</span>
+            </div>
+            <div class="round-row round-old">
+              <span class="round-entry">${p1.name} +15</span>
+              <span class="round-entry">${p0.name} −10</span>
+              <span class="round-entry">${p2.name} −5</span>
+            </div>
+            <div class="round-row round-old">
+              <span class="round-entry">${p2.name} +30</span>
+              <span class="round-entry">${p0.name} −20</span>
+              <span class="round-entry">${p1.name} −10</span>
             </div>
           </div>
         </div>
@@ -130,11 +138,19 @@ const STEPS = [
     body: 'Här ser du varje spelares nettosaldo. Grönt = du har pengar att få. Rött = du är skyldig.',
   },
   {
-    selector: null,
-    position: 'center',
+    selector: '#btn-toggle-settlements',
+    position: 'above',
     icon: '💸',
     title: 'Uppgörelse',
-    body: 'Appen räknar ut så få betalningar som möjligt. Tryck på uppgörelseknappen för att se vem som betalar vem – och bekräfta när det är gjort.',
+    body: 'Appen räknar ut så få betalningar som möjligt. Tryck här för att se vem som betalar vem – och bekräfta när det är gjort.',
+    onEnter: () => {
+      const s = document.getElementById('section-settlements');
+      if (s) { s.style.display = 'block'; s.dataset.obForced = '1'; }
+    },
+    onLeave: () => {
+      const s = document.getElementById('section-settlements');
+      if (s?.dataset.obForced) { s.style.display = 'none'; delete s.dataset.obForced; }
+    },
   },
   {
     selector: '#fab-new-session',
@@ -178,7 +194,7 @@ const STEPS = [
     position: 'below',
     icon: '📈',
     title: 'Sessionsgraf',
-    body: 'Se hur spelarna ligger till under sessionens gång – stapeldiagram med ackumulerade resultat.',
+    body: 'Se hur spelarna ligger till under sessionens gång – diagram med ackumulerade resultat.',
   },
   {
     selector: '#ob-demo-settings',
@@ -201,7 +217,7 @@ const STEPS = [
     position: 'above',
     icon: '📋',
     title: 'Historik',
-    body: 'Alla avslutade sessioner sparas här. Du kan alltid gå tillbaka och se detaljer från en specifik kväll.',
+    body: 'Alla avslutade sessioner sparas här. Du kan alltid gå tillbaka och se detaljer från en specifik session.',
   },
 ];
 
@@ -238,9 +254,14 @@ function buildOverlay() {
       <h3 class="ob-title"></h3>
       <p class="ob-body"></p>
       <div class="ob-footer">
-        <button class="ob-btn-skip">Hoppa över</button>
         <div class="ob-dots"></div>
-        <button class="ob-btn-next">Nästa →</button>
+        <div class="ob-nav-row">
+          <button class="ob-btn-skip">Hoppa över</button>
+          <div class="ob-nav-btns">
+            <button class="ob-btn-prev">← Föregående</button>
+            <button class="ob-btn-next">Nästa →</button>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -251,6 +272,7 @@ function buildOverlay() {
   stepDots = overlayEl.querySelector('.ob-dots');
 
   overlayEl.querySelector('.ob-btn-skip').addEventListener('click', finishOnboarding);
+  overlayEl.querySelector('.ob-btn-prev').addEventListener('click', prevStep);
   overlayEl.querySelector('.ob-btn-next').addEventListener('click', nextStep);
 
   stepDots.innerHTML = STEPS.map((_, i) =>
@@ -286,6 +308,9 @@ function showStep(index) {
   if (isLast) nextBtn.classList.add('ob-btn-next--last');
   else nextBtn.classList.remove('ob-btn-next--last');
 
+  const prevBtn = overlayEl.querySelector('.ob-btn-prev');
+  prevBtn.style.visibility = index === 0 ? 'hidden' : 'visible';
+
   stepDots.querySelectorAll('.ob-dot').forEach((dot, i) => {
     dot.classList.toggle('ob-dot--active', i === index);
   });
@@ -311,13 +336,18 @@ function positionStep(step) {
   if (!target || step.position === 'center') {
     spotlightEl.style.opacity = '0';
     tooltipEl.dataset.arrow = 'none';
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const w = Math.min(340, vw - 32);
+    const h = tooltipEl.offsetHeight || 180;
+    const l = Math.round((vw - w) / 2);
+    const t = Math.round((vh - h) / 2);
     tooltipEl.style.cssText = `
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      margin: auto;
-      width: calc(100vw - 32px);
-      max-width: 340px;
-      height: fit-content;
+      left: ${l}px;
+      top: ${t}px;
+      width: ${w}px;
+      transform: none;
       visibility: visible;
     `;
     return;
@@ -376,6 +406,10 @@ function positionStep(step) {
     width: ${tooltipW}px;
     transform: none;
   `;
+}
+
+function prevStep() {
+  if (currentStep > 0) showStep(currentStep - 1);
 }
 
 function nextStep() {
