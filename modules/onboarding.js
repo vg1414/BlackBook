@@ -32,7 +32,7 @@ const STEPS = [
     position: 'center',
     icon: '♠',
     title: 'Välkommen till Black Book',
-    body: 'Din pokergrupps skuldboken. Här håller vi koll på vem som är skyldig vem – alltid uppdaterat i realtid.',
+    body: 'Gruppens skuldboken. Här håller vi koll på vem som är skyldig vem – alltid uppdaterat i realtid.',
   },
   {
     selector: '#balances-list',
@@ -53,7 +53,7 @@ const STEPS = [
     position: 'above',
     icon: '+',
     title: 'Starta session',
-    body: 'Tryck på + för att starta en ny pokerkväll. Du väljer vilka spelare som är med och ger sessionen ett namn.',
+    body: 'Tryck på + för att starta en ny session. Du väljer vilka spelare som är med och ger sessionen ett namn.',
   },
   {
     selector: '#fab-new-session',
