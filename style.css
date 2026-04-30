@@ -3186,3 +3186,278 @@ button, a, [role="button"] {
   max-height: 420px;
   position: relative;
 }
+
+/* ===== ONBOARDING TOOLTIP TOUR ===== */
+
+.ob-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.ob-overlay.ob-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ob-overlay.ob-hiding {
+  animation: ob-fade-out 0.4s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes ob-fade-out {
+  to { opacity: 0; }
+}
+
+/* Dim backdrop with cutout */
+.ob-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 5, 0.82);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* Spotlight ring */
+.ob-spotlight {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10001;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 9999px rgba(10, 8, 5, 0.82),
+    0 0 0 2px rgba(212, 175, 55, 0.7),
+    0 0 24px 6px rgba(212, 175, 55, 0.35),
+    inset 0 0 0 1px rgba(212, 175, 55, 0.15);
+  transition:
+    left 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
+    top 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
+    width 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
+    height 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.3s ease;
+  animation: ob-spotlight-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes ob-spotlight-pulse {
+  0%, 100% { box-shadow:
+    0 0 0 9999px rgba(10, 8, 5, 0.82),
+    0 0 0 2px rgba(212, 175, 55, 0.7),
+    0 0 24px 6px rgba(212, 175, 55, 0.35),
+    inset 0 0 0 1px rgba(212, 175, 55, 0.15); }
+  50% { box-shadow:
+    0 0 0 9999px rgba(10, 8, 5, 0.82),
+    0 0 0 2px rgba(212, 175, 55, 1),
+    0 0 40px 12px rgba(212, 175, 55, 0.5),
+    inset 0 0 0 1px rgba(212, 175, 55, 0.3); }
+}
+
+/* Tooltip card */
+.ob-tooltip {
+  position: fixed;
+  z-index: 10002;
+  background: linear-gradient(145deg, #1c1a12 0%, #12100a 100%);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 16px;
+  padding: 20px 20px 16px;
+  box-shadow:
+    0 24px 64px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(212, 175, 55, 0.1),
+    inset 0 1px 0 rgba(212, 175, 55, 0.15);
+  max-width: min(340px, 90vw);
+  transition: left 0.42s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ob-tooltip::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  top: 0;
+  left: 0;
+  background: linear-gradient(90deg, transparent 5%, rgba(212,175,55,0.5) 50%, transparent 95%);
+  border-radius: 16px 16px 0 0;
+}
+
+/* Arrow indicators */
+.ob-tooltip[data-arrow="top"]::after {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 9px solid rgba(212, 175, 55, 0.45);
+}
+
+.ob-tooltip[data-arrow="bottom"]::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 9px solid rgba(212, 175, 55, 0.45);
+}
+
+.ob-tooltip-enter {
+  animation: ob-tooltip-pop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes ob-tooltip-pop {
+  from { opacity: 0; transform: scale(0.88) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.ob-tooltip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ob-icon {
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.7));
+  animation: ob-icon-float 3s ease-in-out infinite;
+}
+
+@keyframes ob-icon-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-3px); }
+}
+
+.ob-step-count {
+  font-family: 'Playfair Display', serif;
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(212, 175, 55, 0.55);
+  letter-spacing: 1px;
+}
+
+.ob-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #f5e070;
+  margin: 0 0 8px;
+  line-height: 1.25;
+  text-shadow: 0 0 20px rgba(212,175,55,0.3);
+}
+
+.ob-body {
+  font-family: 'Caveat', cursive;
+  font-size: 16px;
+  font-weight: 400;
+  color: rgba(240, 225, 180, 0.85);
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+.ob-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ob-btn-skip {
+  font-size: 12px;
+  color: rgba(212, 175, 55, 0.45);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: inherit;
+  letter-spacing: 0.3px;
+  transition: color 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ob-btn-skip:hover { color: rgba(212, 175, 55, 0.8); }
+
+.ob-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+}
+
+.ob-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(212, 175, 55, 0.22);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+}
+
+.ob-dot--active {
+  width: 18px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #b8922a, #f5e070, #d4af37);
+  box-shadow: 0 0 6px rgba(212,175,55,0.6);
+}
+
+.ob-dot:hover:not(.ob-dot--active) {
+  background: rgba(212, 175, 55, 0.45);
+}
+
+.ob-btn-next {
+  font-family: 'Playfair Display', serif;
+  font-size: 13px;
+  font-weight: 700;
+  font-style: italic;
+  color: #1a1a2e;
+  background: linear-gradient(135deg, #b8922a 0%, #f5e070 50%, #d4af37 100%);
+  border: none;
+  border-radius: 20px;
+  padding: 7px 16px;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+  box-shadow: 0 2px 12px rgba(212,175,55,0.35);
+}
+
+.ob-btn-next:hover {
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 6px 20px rgba(212,175,55,0.5);
+  filter: brightness(1.08);
+}
+
+.ob-btn-next:active {
+  transform: scale(0.97);
+}
+
+.ob-btn-next--last {
+  background: linear-gradient(135deg, #1a6b3a 0%, #2ea05a 50%, #1d7e45 100%);
+  box-shadow: 0 2px 12px rgba(46,160,90,0.4);
+  color: #fff;
+}
+
+.ob-btn-next--last:hover {
+  box-shadow: 0 6px 20px rgba(46,160,90,0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-spotlight,
+  .ob-icon,
+  .ob-tooltip,
+  .ob-overlay { animation: none !important; transition: none !important; }
+}

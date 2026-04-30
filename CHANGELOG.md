@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-30 (uppdatering 61)
+- Ny: Animerad tooltip-rundtur (onboarding) visas första gången man går med i en ny grupp – 8 steg med spotlight, guld-design och Hoppa över-knapp
+
 ## 2026-04-29 (uppdatering 60)
 - Ny: Antal vunna (W) och förlorade (L) rundor visas per spelare under "Per spelare" i sessionsstats
 

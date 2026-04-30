@@ -21,6 +21,7 @@ import {
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
 import { sekToOre, oreToSek } from './modules/settlement.js';
+import { startOnboarding } from './modules/onboarding.js';
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1086,6 +1087,7 @@ async function handleJoin() {
   saveGroup(code, playerId, playerName, joinMeta?.createdAt ?? null, joinGroupName);
   await connectToGroup();
   showToast(`Välkommen, ${playerName}!`);
+  setTimeout(() => startOnboarding(code), 800);
 }
 
 async function handleCreate() {
@@ -1116,6 +1118,7 @@ async function handleConfirmCreateName() {
   closeModal('modal-create-name');
   await connectToGroup();
   showToast(`Grupp skapad! Kod: ${code}`);
+  setTimeout(() => startOnboarding(code), 800);
 }
 
 function handleLeaveGroup() {
