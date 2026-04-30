@@ -182,14 +182,14 @@ function positionStep(step) {
   const target = step.selector ? document.querySelector(step.selector) : null;
 
   if (!target || step.position === 'center') {
-    // Center mode – no spotlight
     spotlightEl.style.opacity = '0';
     tooltipEl.style.cssText = `
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      max-width: min(340px, 90vw);
+      max-width: min(340px, 92vw);
+      width: 92vw;
     `;
     return;
   }
@@ -197,7 +197,6 @@ function positionStep(step) {
   const rect = target.getBoundingClientRect();
   const pad = 10;
 
-  // Spotlight
   spotlightEl.style.cssText = `
     opacity: 1;
     left: ${rect.left - pad}px;
@@ -207,28 +206,47 @@ function positionStep(step) {
     border-radius: 12px;
   `;
 
-  // Tooltip positioning
-  const tooltipW = Math.min(320, window.innerWidth * 0.88);
-  const tooltipH = 220; // estimate
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const margin = 12;
+  const gap = 14;
+
+  const tooltipW = Math.min(320, vw * 0.92);
+  // Set width first so the browser can measure actual rendered height
+  tooltipEl.style.width = `${tooltipW}px`;
+  tooltipEl.style.position = 'fixed';
+  tooltipEl.style.visibility = 'hidden';
+  const tooltipH = tooltipEl.offsetHeight || 180;
+  tooltipEl.style.visibility = '';
 
   let left = rect.left + rect.width / 2 - tooltipW / 2;
   let top;
   let arrowPos = 'none';
 
-  if (step.position === 'below') {
-    top = rect.bottom + 18;
+  const spaceBelow = vh - rect.bottom - margin;
+  const spaceAbove = rect.top - margin;
+
+  if (step.position === 'below' || spaceAbove < tooltipH + gap) {
+    top = rect.bottom + gap;
     arrowPos = 'top';
+    // If it still overflows the bottom, center it vertically instead
+    if (top + tooltipH > vh - margin) {
+      top = Math.max(margin, (vh - tooltipH) / 2);
+      arrowPos = 'none';
+    }
   } else {
-    top = rect.top - tooltipH - 18;
+    top = rect.top - tooltipH - gap;
     arrowPos = 'bottom';
-    if (top < 10) {
-      top = rect.bottom + 18;
+    if (top < margin) {
+      top = rect.bottom + gap;
       arrowPos = 'top';
     }
   }
 
   // Clamp horizontally
-  left = Math.max(12, Math.min(left, window.innerWidth - tooltipW - 12));
+  left = Math.max(margin, Math.min(left, vw - tooltipW - margin));
+  // Clamp vertically
+  top = Math.max(margin, Math.min(top, vh - tooltipH - margin));
 
   tooltipEl.dataset.arrow = arrowPos;
   tooltipEl.style.cssText = `

@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-04-30 (uppdatering 63)
+- Fix: onboarding-tooltip mobilanpassad – mäter faktisk höjd, clampar vertikalt, centreras om det inte finns plats
+
 ## 2026-04-30 (uppdatering 62)
 - Fix: 📈-knappen i stängd session öppnar nu direkt grafen (inte stats-panelen)
 - Fix: session-detail-modalen stängs automatiskt när grafmodalen öppnas
