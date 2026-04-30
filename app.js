@@ -21,7 +21,7 @@ import {
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
 import { sekToOre, oreToSek } from './modules/settlement.js';
-import { startOnboarding, startLobbyGuide } from './modules/onboarding.js';
+import { startOnboarding, startLobbyGuide, showLobbyGuideForced, showSessionGuideForced, showSessionGuideFromStart } from './modules/onboarding.js';
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -759,6 +759,20 @@ function bindEvents() {
   });
   document.getElementById('btn-leave-group').addEventListener('click', handleLeaveGroup);
   document.getElementById('btn-delete-group').addEventListener('click', handleDeleteGroup);
+  document.getElementById('input-delete-confirm').addEventListener('input', e => {
+    const saved = getSavedGroup();
+    const groupName = saved?.groupName || state.groupCode;
+    document.getElementById('btn-delete-group-final').disabled = e.target.value !== groupName;
+  });
+  document.getElementById('btn-delete-group-final').addEventListener('click', executeDeleteGroup);
+  document.getElementById('btn-delete-group-cancel').addEventListener('click', () => {
+    document.getElementById('delete-group-confirm').classList.add('hidden');
+    document.getElementById('btn-delete-group').style.display = '';
+  });
+  document.getElementById('btn-show-lobby-guide').addEventListener('click', () => {
+    closeGroupModal();
+    setTimeout(() => showSessionGuideFromStart(), 300);
+  });
 
   // Remove player (delegated)
   document.getElementById('group-players-list').addEventListener('click', e => {
@@ -793,6 +807,10 @@ function bindEvents() {
   document.getElementById('btn-toggle-unit').addEventListener('click', handleToggleUnit);
   document.getElementById('btn-close-session-settings-x').addEventListener('click', () => closeModal('modal-session-settings'));
   document.getElementById('btn-save-session-settings').addEventListener('click', handleSaveSessionSettings);
+  document.getElementById('btn-show-session-guide').addEventListener('click', () => {
+    closeModal('modal-session-settings');
+    setTimeout(() => showSessionGuideForced(), 300);
+  });
   document.getElementById('btn-copy-code-session').addEventListener('click', () => {
     if (state.groupCode) {
       navigator.clipboard.writeText(state.groupCode).then(() => showToast('Kopierat!')).catch(() => showToast(state.groupCode));
@@ -1708,6 +1726,8 @@ function openGroupModal() {
   openModal('modal-group');
   renderGroupPlayers(state.players, state.playerId);
   document.getElementById('btn-delete-group').style.display = '';
+  document.getElementById('delete-group-confirm').classList.add('hidden');
+  document.getElementById('input-delete-confirm').value = '';
 }
 
 async function handleRemovePlayer(playerId) {
@@ -1718,24 +1738,20 @@ async function handleRemovePlayer(playerId) {
   showToast(`${player.name} borttagen`);
 }
 
-async function handleDeleteGroup() {
+function handleDeleteGroup() {
+  const saved = getSavedGroup();
+  const groupName = saved?.groupName || state.groupCode;
+  document.getElementById('btn-delete-group').style.display = 'none';
+  const box = document.getElementById('delete-group-confirm');
+  box.classList.remove('hidden');
+  document.getElementById('delete-confirm-group-name').textContent = groupName;
+  document.getElementById('input-delete-confirm').value = '';
+  document.getElementById('btn-delete-group-final').disabled = true;
+  setTimeout(() => document.getElementById('input-delete-confirm').focus(), 50);
+}
+
+async function executeDeleteGroup() {
   const code = state.groupCode;
-  const playerCount = Object.keys(state.players).length;
-  const confirmed = confirm(
-    `⚠️ RADERA GRUPP: ${code}\n\n` +
-    `Detta raderar ALLT permanent:\n` +
-    `• ${playerCount} spelare\n` +
-    `• Alla sessioner och resultat\n` +
-    `• Alla saldon och skulder\n\n` +
-    `Detta går INTE att ångra!\n\n` +
-    `Är du helt säker?`
-  );
-  if (!confirmed) return;
-
-  // Dubbel bekräftelse
-  const confirmed2 = confirm(`Sista chansen – radera grupp "${code}" för alltid?`);
-  if (!confirmed2) return;
-
   state.unsubscribers.forEach(fn => fn());
   state.unsubscribers = [];
   await deleteGroup(code);

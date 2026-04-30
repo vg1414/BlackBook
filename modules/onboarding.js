@@ -246,6 +246,18 @@ export function startOnboarding(groupCode, playerId) {
   showStep(0);
 }
 
+export function showSessionGuideFromStart() {
+  currentStep = 0;
+  buildOverlay();
+  showStep(0);
+}
+
+export function showSessionGuideForced() {
+  currentStep = 5;
+  buildOverlay();
+  showStep(5);
+}
+
 function buildOverlay() {
   destroyOverlay();
 
@@ -485,6 +497,13 @@ let lobbyStep = 0;
 
 export function startLobbyGuide() {
   if (localStorage.getItem(LOBBY_GUIDE_KEY)) return;
+  lobbyStep = 0;
+  buildLobbyOverlay();
+  showLobbyStep(0);
+}
+
+export function showLobbyGuideForced() {
+  localStorage.removeItem(LOBBY_GUIDE_KEY);
   lobbyStep = 0;
   buildLobbyOverlay();
   showLobbyStep(0);

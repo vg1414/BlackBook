@@ -505,6 +505,24 @@ input[type="number"]::-webkit-outer-spin-button {
   border: 1px solid var(--danger);
 }
 
+.btn-ghost {
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  letter-spacing: 0.03em;
+  transition: background 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-ghost:hover {
+  background: rgba(212, 175, 55, 0.08);
+  border-color: rgba(212, 175, 55, 0.7);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.15);
+}
+
+.btn-ghost:active {
+  background: rgba(212, 175, 55, 0.12);
+}
+
 .btn-full {
   width: 100%;
 }
@@ -2437,6 +2455,65 @@ input[type="number"]::-webkit-outer-spin-button {
 .btn-danger-ghost:active {
   background: rgba(224, 82, 82, 0.08);
   border-color: var(--danger);
+}
+
+.delete-confirm-box {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid rgba(224, 82, 82, 0.35);
+  border-radius: var(--radius);
+  background: rgba(224, 82, 82, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.delete-confirm-box.hidden {
+  display: none;
+}
+
+.delete-confirm-warning {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--danger);
+  line-height: 1.5;
+}
+
+.delete-confirm-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.delete-confirm-name {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+}
+
+.delete-confirm-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  background: var(--bg-2);
+  border: 1px solid #3a3a3a;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.delete-confirm-input:focus {
+  border-color: var(--danger);
+}
+
+#btn-delete-group-final:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .closed-session-item:nth-child(1) { animation-delay: 0.05s; }

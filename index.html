@@ -285,9 +285,18 @@
       </div>
       <div id="group-players-list" class="group-players-list"></div>
       <div class="modal-actions">
+        <button id="btn-show-lobby-guide" class="btn btn-ghost btn-full">Visa guiden igen</button>
         <button id="btn-leave-group" class="btn btn-danger btn-full">Lämna grupp</button>
       </div>
       <button id="btn-delete-group" class="btn btn-danger btn-full" style="display:none;margin-top:8px">Radera grupp permanent</button>
+      <div id="delete-group-confirm" class="delete-confirm-box hidden">
+        <p class="delete-confirm-warning">All data – spelare, sessioner, saldon och skulder – raderas omedelbart och kan inte återställas.</p>
+        <p class="delete-confirm-label">Skriv in gruppens namn exakt (skiftlägeskänsligt) för att bekräfta:</p>
+        <p id="delete-confirm-group-name" class="delete-confirm-name"></p>
+        <input type="text" id="input-delete-confirm" class="delete-confirm-input" placeholder="Gruppens namn" autocomplete="off" />
+        <button id="btn-delete-group-final" class="btn btn-danger btn-full" disabled>Radera permanent</button>
+        <button id="btn-delete-group-cancel" class="btn btn-ghost btn-full" style="margin-top:6px">Avbryt</button>
+      </div>
     </div>
   </div>
 
@@ -313,6 +322,7 @@
       </div>
       <div class="modal-actions">
         <button id="btn-save-session-settings" class="btn btn-primary btn-full">Spara</button>
+        <button id="btn-show-session-guide" class="btn btn-ghost btn-full">Visa guiden igen</button>
       </div>
     </div>
   </div>
