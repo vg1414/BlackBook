@@ -3212,26 +3212,21 @@ button, a, [role="button"] {
   to { opacity: 0; }
 }
 
-/* Dim backdrop with cutout */
+/* Dim backdrop – hidden, dimning sker via spotlight box-shadow */
 .ob-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 8, 5, 0.82);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  display: none;
 }
 
-/* Spotlight ring */
+/* Spotlight ring – box-shadow skapar hålet i dimman */
 .ob-spotlight {
   position: fixed;
   pointer-events: none;
   z-index: 10001;
   border-radius: 12px;
   box-shadow:
-    0 0 0 9999px rgba(10, 8, 5, 0.82),
-    0 0 0 2px rgba(212, 175, 55, 0.7),
-    0 0 24px 6px rgba(212, 175, 55, 0.35),
-    inset 0 0 0 1px rgba(212, 175, 55, 0.15);
+    0 0 0 9999px rgba(10, 8, 5, 0.72),
+    0 0 0 2px rgba(212, 175, 55, 0.8),
+    0 0 28px 8px rgba(212, 175, 55, 0.4);
   transition:
     left 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
     top 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -3243,15 +3238,13 @@ button, a, [role="button"] {
 
 @keyframes ob-spotlight-pulse {
   0%, 100% { box-shadow:
-    0 0 0 9999px rgba(10, 8, 5, 0.82),
-    0 0 0 2px rgba(212, 175, 55, 0.7),
-    0 0 24px 6px rgba(212, 175, 55, 0.35),
-    inset 0 0 0 1px rgba(212, 175, 55, 0.15); }
+    0 0 0 9999px rgba(10, 8, 5, 0.72),
+    0 0 0 2px rgba(212, 175, 55, 0.8),
+    0 0 28px 8px rgba(212, 175, 55, 0.4); }
   50% { box-shadow:
-    0 0 0 9999px rgba(10, 8, 5, 0.82),
+    0 0 0 9999px rgba(10, 8, 5, 0.72),
     0 0 0 2px rgba(212, 175, 55, 1),
-    0 0 40px 12px rgba(212, 175, 55, 0.5),
-    inset 0 0 0 1px rgba(212, 175, 55, 0.3); }
+    0 0 44px 14px rgba(212, 175, 55, 0.6); }
 }
 
 /* Tooltip card */

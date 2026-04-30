@@ -110,7 +110,6 @@ function buildOverlay() {
   overlayEl = document.createElement('div');
   overlayEl.className = 'ob-overlay';
   overlayEl.innerHTML = `
-    <div class="ob-backdrop"></div>
     <div class="ob-spotlight"></div>
     <div class="ob-tooltip">
       <div class="ob-tooltip-header">
