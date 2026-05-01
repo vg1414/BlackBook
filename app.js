@@ -41,7 +41,8 @@ const state = {
   confirmations: {},
   activeSessionId: null,
   unsubscribers: [],
-  newSessionSelectedPlayers: []
+  newSessionSelectedPlayers: [],
+  initialNavDone: false
 };
 
 // ===== ORIENTATION LOCK =====
@@ -56,22 +57,21 @@ function init() {
   const saved = getSavedGroup();
   const joinParam = new URLSearchParams(location.search).get('join')?.toUpperCase();
 
-  if (saved && !joinParam) {
+  showScreen('lobby');
+  renderSavedGroups();
+  if (joinParam) {
+    document.getElementById('input-group-code').value = joinParam;
+    handleCodeBlur();
+    history.replaceState(null, '', location.pathname);
+  } else if (saved && !joinParam) {
     state.groupCode = saved.groupCode;
     state.playerId = saved.playerId;
     state.playerName = saved.playerName;
-    connectToGroup();
+    // Anslut i bakgrunden – onSessionsUpdate navigerar in endast om aktiv session finns
+    connectToGroup(true);
   } else {
-    showScreen('lobby');
-    if (joinParam) {
-      document.getElementById('input-group-code').value = joinParam;
-      handleCodeBlur();
-      // Rensa ?join= från URL utan att ladda om sidan
-      history.replaceState(null, '', location.pathname);
-    } else {
-      prefillCode();
-      setTimeout(() => startLobbyGuide(), 600);
-    }
+    prefillCode();
+    setTimeout(() => startLobbyGuide(), 600);
   }
 
   bindEvents();
@@ -218,7 +218,7 @@ function generateCode() {
 
 // ===== CONNECT =====
 
-async function connectToGroup() {
+async function connectToGroup(autoNav = false) {
   const { groupCode } = state;
   if (!groupCode) return;
 
@@ -260,8 +260,7 @@ async function connectToGroup() {
   // Kör recalcTotals för att säkerställa att history och totals är synkade
   recalcTotals(groupCode).catch(() => {});
 
-  showScreen('dashboard');
-  document.getElementById('bottom-nav').classList.remove('hidden');
+  state.initialNavDone = !autoNav;
   document.getElementById('display-group-code').textContent = groupCode;
 
   // Visa gruppnamn i dashboard-headern
@@ -277,6 +276,11 @@ async function connectToGroup() {
       nameEl.textContent = 'Black Book';
       nameEl.classList.remove('header-title-group');
     }
+  }
+
+  if (!autoNav) {
+    document.getElementById('bottom-nav').classList.remove('hidden');
+    showScreen('dashboard');
   }
 }
 
@@ -294,6 +298,15 @@ function onPlayersUpdate() {
 function onSessionsUpdate() {
   const active = Object.entries(state.sessions).find(([, s]) => s.status === 'active');
   state.activeSessionId = active ? active[0] : null;
+
+  if (!state.initialNavDone) {
+    state.initialNavDone = true;
+    if (state.activeSessionId) {
+      showScreen('dashboard');
+      document.getElementById('bottom-nav').classList.remove('hidden');
+    }
+    // Ingen aktiv session → stanna kvar på lobby
+  }
 
   renderActiveSessionPreview(state.sessions, state.players);
   renderClosedSessionsOnDashboard(state.sessions, state.players, state.entries, getDashboardShowKr());
