@@ -103,9 +103,7 @@ html, body {
 }
 
 body {
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
+  padding: 0;
 }
 
 /* ===== APP SHELL ===== */
@@ -3599,4 +3597,42 @@ button, a, [role="button"] {
 
 #ob-demo-session .session-rounds-list {
   min-height: unset;
+}
+
+/* ===== LANDSCAPE BLOCK ===== */
+#landscape-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #1a1a1a;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+#landscape-overlay svg {
+  width: 64px;
+  height: 64px;
+  color: var(--gold);
+  animation: rotatePulse 2s ease-in-out infinite;
+}
+
+#landscape-overlay p {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+@keyframes rotatePulse {
+  0%, 100% { transform: rotate(0deg); opacity: 0.7; }
+  50%       { transform: rotate(15deg); opacity: 1; }
+}
+
+@media (orientation: landscape) {
+  #landscape-overlay {
+    display: flex;
+  }
 }

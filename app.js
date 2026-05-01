@@ -44,6 +44,12 @@ const state = {
   newSessionSelectedPlayers: []
 };
 
+// ===== ORIENTATION LOCK =====
+
+if (screen?.orientation?.lock) {
+  screen.orientation.lock('portrait').catch(() => {});
+}
+
 // ===== INIT =====
 
 function init() {
