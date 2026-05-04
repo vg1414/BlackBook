@@ -274,6 +274,29 @@
     </div>
   </div>
 
+  <!-- No Point Value Confirmation Modal -->
+  <div id="modal-no-point-value" class="modal-overlay modal-overlay--center hidden">
+    <div class="modal modal--compact modal--center-sheet">
+      <div class="npv-icon-wrap">
+        <svg class="npv-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="24" r="22" stroke="currentColor" stroke-width="2.5"/>
+          <path d="M17 18c0-3.866 3.134-7 7-7s7 3.134 7 7c0 3.2-2.1 5.9-5 6.7V27" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="24" cy="33" r="1.5" fill="currentColor"/>
+        </svg>
+        <div class="npv-icon-ring"></div>
+      </div>
+      <div class="npv-text">
+        <h3 class="npv-title">Ingen pengainsats?</h3>
+        <p class="npv-body">Du har inte angett något kr/p-värde. Sessionen spelas då enbart om poäng – inga kronor räknas ut.</p>
+        <p class="npv-sub">Du kan alltid lägga till ett värde i sessionsinställningarna senare.</p>
+      </div>
+      <div class="modal-actions npv-actions">
+        <button id="btn-npv-back" class="btn btn-secondary">Ändra</button>
+        <button id="btn-npv-confirm" class="btn btn-primary">Spela om poäng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Group Settings Modal -->
   <div id="modal-group" class="modal-overlay hidden">
     <div class="modal">

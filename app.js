@@ -733,6 +733,19 @@ function bindEvents() {
   document.getElementById('btn-cancel-session-x').addEventListener('click', closeNewSessionModal);
   document.getElementById('btn-start-session').addEventListener('click', handleStartSession);
 
+  // No-point-value confirmation modal
+  document.getElementById('btn-npv-back').addEventListener('click', () => {
+    closeNoPointValueModal();
+    const input = document.getElementById('input-point-value');
+    input.classList.add('input--highlight');
+    input.focus();
+    setTimeout(() => input.classList.remove('input--highlight'), 2000);
+  });
+  document.getElementById('btn-npv-confirm').addEventListener('click', () => {
+    closeNoPointValueModal();
+    doStartSession();
+  });
+
   // Create group – name modal
   document.getElementById('btn-confirm-create-name').addEventListener('click', handleConfirmCreateName);
   document.getElementById('input-create-name').addEventListener('keydown', e => {
@@ -1214,8 +1227,18 @@ function closeNewSessionModal() {
   closeModal('modal-new-session');
 }
 
+function openNoPointValueModal() {
+  const el = document.getElementById('modal-no-point-value');
+  el.classList.remove('hidden', 'closing');
+}
+
+function closeNoPointValueModal() {
+  const el = document.getElementById('modal-no-point-value');
+  el.classList.add('closing');
+  setTimeout(() => el.classList.add('hidden'), 240);
+}
+
 async function handleStartSession() {
-  const name = document.getElementById('input-session-name').value.trim();
   const pvRaw = parseFloat(document.getElementById('input-point-value').value);
   const pointValue = isNaN(pvRaw) || pvRaw <= 0 ? null : pvRaw;
 
@@ -1226,6 +1249,19 @@ async function handleStartSession() {
     showToast('Inga spelare i gruppen');
     return;
   }
+
+  if (!pointValue) {
+    openNoPointValueModal();
+    return;
+  }
+
+  await doStartSession();
+}
+
+async function doStartSession() {
+  const name = document.getElementById('input-session-name').value.trim();
+  const pvRaw = parseFloat(document.getElementById('input-point-value').value);
+  const pointValue = isNaN(pvRaw) || pvRaw <= 0 ? null : pvRaw;
 
   // Sessionen startar alltid i poäng-läge. Om användaren angett ett poängvärde
   // sparas det i _storedPointValue så att toggle-knappen kan växla till kr.
@@ -1857,15 +1893,11 @@ async function handleSaveSessionSettings() {
   const pvRaw = parseFloat(document.getElementById('input-session-point-value-modal').value);
   const pointValue = isNaN(pvRaw) || pvRaw <= 0 ? null : pvRaw;
 
-  const session = state.sessions[state.activeSessionId];
-  const currentlyKrMode = !!(session?.pointValue);
   const fields = {
     name: nameVal || null,
-    _storedPointValue: pointValue ?? null
+    _storedPointValue: pointValue ?? null,
+    pointValue: pointValue ?? null
   };
-  if (currentlyKrMode) {
-    fields.pointValue = pointValue ?? null;
-  }
 
   await updateSessionMeta(state.groupCode, state.activeSessionId, fields);
 

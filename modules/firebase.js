@@ -275,9 +275,11 @@ export async function confirmTransaction(groupCode, from, to, amount, amountKr) 
     from, to, amount, amountKr,
     confirmedAt: Date.now()
   });
-  // Justera totals.krNet (öre) så att kvarstående skulder minskar
+  // Justera totals.krNet och net (öre) så att kvarstående skulder minskar
   await runTransaction(ref(db, `groups/${groupCode}/totals/${from}/krNet`), cur => (cur || 0) + amountKr);
   await runTransaction(ref(db, `groups/${groupCode}/totals/${to}/krNet`), cur => (cur || 0) - amountKr);
+  await runTransaction(ref(db, `groups/${groupCode}/totals/${from}/net`), cur => (cur || 0) + amountKr);
+  await runTransaction(ref(db, `groups/${groupCode}/totals/${to}/net`), cur => (cur || 0) - amountKr);
 }
 
 export async function unconfirmTransaction(groupCode, from, to, amount, amountKr) {
@@ -285,6 +287,8 @@ export async function unconfirmTransaction(groupCode, from, to, amount, amountKr
   await set(ref(db, `groups/${groupCode}/confirmations/${key}`), null);
   await runTransaction(ref(db, `groups/${groupCode}/totals/${from}/krNet`), cur => (cur || 0) - amountKr);
   await runTransaction(ref(db, `groups/${groupCode}/totals/${to}/krNet`), cur => (cur || 0) + amountKr);
+  await runTransaction(ref(db, `groups/${groupCode}/totals/${from}/net`), cur => (cur || 0) - amountKr);
+  await runTransaction(ref(db, `groups/${groupCode}/totals/${to}/net`), cur => (cur || 0) + amountKr);
 }
 
 export function listenConfirmations(groupCode, callback) {
@@ -390,8 +394,8 @@ export async function recalcTotals(groupCode) {
 
   // Applicera bekräftade transaktioner – dessa justerar totals så att betalda skulder försvinner
   Object.values(confirmations).forEach(tx => {
-    if (totals[tx.from] !== undefined) totals[tx.from].krNet += tx.amountKr || 0;
-    if (totals[tx.to] !== undefined) totals[tx.to].krNet -= tx.amountKr || 0;
+    if (totals[tx.from] !== undefined) { totals[tx.from].krNet += tx.amountKr || 0; totals[tx.from].net += tx.amountKr || 0; }
+    if (totals[tx.to]   !== undefined) { totals[tx.to].krNet   -= tx.amountKr || 0; totals[tx.to].net   -= tx.amountKr || 0; }
   });
 
   await set(ref(db, `groups/${groupCode}/totals`), totals);
