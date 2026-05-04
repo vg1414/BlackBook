@@ -339,8 +339,16 @@ function getActivePointValueForSettlement() {
   return s?.pointValue || s?._storedPointValue || null;
 }
 
+function groupHasPointValue() {
+  return Object.values(state.sessions || {}).some(s =>
+    (s.pointValue || s._storedPointValue) > 0
+  );
+}
+
 function getDashboardShowKr() {
-  return (localStorage.getItem('dashboardUnit') ?? 'p') === 'kr';
+  const stored = localStorage.getItem('dashboardUnit');
+  if (stored !== null) return stored === 'kr';
+  return groupHasPointValue();
 }
 
 function updateDashboardUnitToggle() {
