@@ -896,8 +896,8 @@ input[type="number"]::-webkit-outer-spin-button {
   font-variant-numeric: tabular-nums;
 }
 
-.totals-amount.positive { color: var(--positive); }
-.totals-amount.negative { color: var(--negative); }
+.totals-amount.positive { color: var(--success); }
+.totals-amount.negative { color: var(--danger); }
 .totals-amount.zero { color: var(--text-muted); }
 
 .settlement-item {
