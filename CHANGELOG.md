@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-05-13 (uppdatering 66)
+- Ny: stats per session visar genomsnittlig vinst per vinnande runda (🏆 ∅ X/vinst)
+- Ny: oavgjorda rundor (amount = 0) visas nu som T i gult i W/L-chipen, t.ex. 9W / 5L / 7T
+- Fix: landscape-spärr visas inte längre på datorn (nu bara för skärmar under 900px bred)
+
 ## 2026-04-30 (uppdatering 65)
 - Ny: onboarding visar demo-session (5 steg) med slumpmässiga spelare – registrering, nollsumma, ångra, graf, inställningar
 - Fix: tooltip-pil nollställs korrekt i center-läge

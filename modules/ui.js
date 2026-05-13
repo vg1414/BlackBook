@@ -432,7 +432,9 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
   // Antal vunna/förlorade rundor per spelare
   const winsCount = {};
   const lossCount = {};
-  playerIds.forEach(pid => { winsCount[pid] = 0; lossCount[pid] = 0; });
+  const tieCount = {};
+  const winAmountSum = {};
+  playerIds.forEach(pid => { winsCount[pid] = 0; lossCount[pid] = 0; tieCount[pid] = 0; winAmountSum[pid] = 0; });
 
   // Topp- och bottennotering per spelare (löpande saldo)
   const peakBalance = {};
@@ -452,6 +454,9 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
         streaks[pid].current++;
         if (streaks[pid].current > streaks[pid].max) streaks[pid].max = streaks[pid].current;
         winsCount[pid]++;
+        winAmountSum[pid] += amt;
+      } else {
+        tieCount[pid]++;
       }
     });
     round.forEach(e => {
@@ -586,10 +591,11 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
                 <span class="sd-pstat-name">${escHtml(p.name)}</span>
               </div>
               <div class="sd-pstat-chips">
-                ${winsCount[pid] > 0 || lossCount[pid] > 0 ? `<span class="sd-chip"><span class="sd-wl-win">${winsCount[pid]}W</span> / <span class="sd-wl-loss">${lossCount[pid]}L</span></span>` : ''}
+                ${winsCount[pid] > 0 || lossCount[pid] > 0 || tieCount[pid] > 0 ? `<span class="sd-chip"><span class="sd-wl-win">${winsCount[pid]}W</span> / <span class="sd-wl-loss">${lossCount[pid]}L</span>${tieCount[pid] > 0 ? ` / <span class="sd-wl-tie">${tieCount[pid]}T</span>` : ''}</span>` : ''}
                 ${st?.max > 0 ? `<span class="sd-chip">🔥 ${st.max} streak</span>` : ''}
                 ${br?.amount > -Infinity && br?.amount > 0 ? `<span class="sd-chip">⚡ Bästa runda: ${fmt(br.amount)}</span>` : ''}
                 ${rounds.length > 0 ? `<span class="sd-chip ${avgPerRound[pid] > 0 ? 'sd-chip--pos' : avgPerRound[pid] < 0 ? 'sd-chip--neg' : ''}">∅ ${fmtAvg(avgPerRound[pid])}/runda</span>` : ''}
+                ${winsCount[pid] > 0 ? `<span class="sd-chip sd-chip--pos">🏆 ∅ ${fmtAvg(winAmountSum[pid] / winsCount[pid])}/vinst</span>` : ''}
               </div>
               <div class="sd-pstat-chips">
                 ${peakBalance[pid] !== null && peakBalance[pid] > 0 ? `<span class="sd-chip sd-chip--pos">▲ Topp: ${fmt(peakBalance[pid])}</span>` : ''}
