@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-13 (uppdatering 67)
+- Ny: Enter i "Ny session"-modalen startar sessionen (fungerar på desktop och Android)
+- Ny: poängvärde-fältet visar "Klar" på Android-tangentbordet (enterkeyhint=done)
+
 ## 2026-05-13 (uppdatering 66)
 - Ny: stats per session visar genomsnittlig vinst per vinnande runda (🏆 ∅ X/vinst)
 - Ny: oavgjorda rundor (amount = 0) visas nu som T i gult i W/L-chipen, t.ex. 9W / 5L / 7T

@@ -741,6 +741,20 @@ function bindEvents() {
   document.getElementById('btn-cancel-session-x').addEventListener('click', closeNewSessionModal);
   document.getElementById('btn-start-session').addEventListener('click', handleStartSession);
 
+  document.getElementById('modal-new-session').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleStartSession();
+    }
+  });
+
+  document.getElementById('input-point-value').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleStartSession();
+    }
+  });
+
   // No-point-value confirmation modal
   document.getElementById('btn-npv-back').addEventListener('click', () => {
     closeNoPointValueModal();
