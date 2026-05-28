@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-28
+- Fix: confirmTransaction/unconfirmTransaction är nu idempotenta och atomära – samma betalning kan inte dubbelregistreras (löste bugg där saldo blev fel efter bekräftelse, t.ex. mottagare på -192 kr trots betald skuld)
+- Bump: SW-cache till v14 så alla klienter får den fixade firebase.js
+
 ## 2026-05-13 (uppdatering 67)
 - Ny: Enter i "Ny session"-modalen startar sessionen (fungerar på desktop och Android)
 - Ny: poängvärde-fältet visar "Klar" på Android-tangentbordet (enterkeyhint=done)

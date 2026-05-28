@@ -271,24 +271,57 @@ export function listenBalances(groupCode, callback) {
 export async function confirmTransaction(groupCode, from, to, amount, amountKr) {
   // amount = kr (heltal), amountKr = öre
   const key = `${from}_${to}_${amount}`;
-  await set(ref(db, `groups/${groupCode}/confirmations/${key}`), {
-    from, to, amount, amountKr,
-    confirmedAt: Date.now()
+  const confRef = ref(db, `groups/${groupCode}/confirmations/${key}`);
+
+  // Idempotens: skapa confirmation atomärt. Returnerar false om den redan fanns
+  // → totals justeras INTE igen (skyddar mot dubbelklick / retries / gamla klienter).
+  const txResult = await runTransaction(confRef, cur => {
+    if (cur) return; // avbryt – redan bekräftad
+    return { from, to, amount, amountKr, confirmedAt: Date.now() };
   });
-  // Justera totals.krNet och net (öre) så att kvarstående skulder minskar
-  await runTransaction(ref(db, `groups/${groupCode}/totals/${from}/krNet`), cur => (cur || 0) + amountKr);
-  await runTransaction(ref(db, `groups/${groupCode}/totals/${to}/krNet`), cur => (cur || 0) - amountKr);
-  await runTransaction(ref(db, `groups/${groupCode}/totals/${from}/net`), cur => (cur || 0) + amountKr);
-  await runTransaction(ref(db, `groups/${groupCode}/totals/${to}/net`), cur => (cur || 0) - amountKr);
+  if (!txResult.committed) return;
+
+  // Läs nuvarande totals och bygg en atomär multi-path-update så att alla fyra
+  // justeringarna landar tillsammans (eller inte alls).
+  const [fromSnap, toSnap] = await Promise.all([
+    get(ref(db, `groups/${groupCode}/totals/${from}`)),
+    get(ref(db, `groups/${groupCode}/totals/${to}`))
+  ]);
+  const fromCur = fromSnap.exists() ? fromSnap.val() : { net: 0, krNet: 0 };
+  const toCur   = toSnap.exists()   ? toSnap.val()   : { net: 0, krNet: 0 };
+
+  await update(ref(db, `groups/${groupCode}/totals`), {
+    [`${from}/krNet`]: (fromCur.krNet || 0) + amountKr,
+    [`${from}/net`]:   (fromCur.net   || 0) + amountKr,
+    [`${to}/krNet`]:   (toCur.krNet   || 0) - amountKr,
+    [`${to}/net`]:     (toCur.net     || 0) - amountKr
+  });
 }
 
 export async function unconfirmTransaction(groupCode, from, to, amount, amountKr) {
   const key = `${from}_${to}_${amount}`;
-  await set(ref(db, `groups/${groupCode}/confirmations/${key}`), null);
-  await runTransaction(ref(db, `groups/${groupCode}/totals/${from}/krNet`), cur => (cur || 0) - amountKr);
-  await runTransaction(ref(db, `groups/${groupCode}/totals/${to}/krNet`), cur => (cur || 0) + amountKr);
-  await runTransaction(ref(db, `groups/${groupCode}/totals/${from}/net`), cur => (cur || 0) - amountKr);
-  await runTransaction(ref(db, `groups/${groupCode}/totals/${to}/net`), cur => (cur || 0) + amountKr);
+  const confRef = ref(db, `groups/${groupCode}/confirmations/${key}`);
+
+  // Idempotens: radera bara om den finns. Annars hoppa över totals-justeringen.
+  const txResult = await runTransaction(confRef, cur => {
+    if (!cur) return; // avbryt – inget att ångra
+    return null;
+  });
+  if (!txResult.committed) return;
+
+  const [fromSnap, toSnap] = await Promise.all([
+    get(ref(db, `groups/${groupCode}/totals/${from}`)),
+    get(ref(db, `groups/${groupCode}/totals/${to}`))
+  ]);
+  const fromCur = fromSnap.exists() ? fromSnap.val() : { net: 0, krNet: 0 };
+  const toCur   = toSnap.exists()   ? toSnap.val()   : { net: 0, krNet: 0 };
+
+  await update(ref(db, `groups/${groupCode}/totals`), {
+    [`${from}/krNet`]: (fromCur.krNet || 0) - amountKr,
+    [`${from}/net`]:   (fromCur.net   || 0) - amountKr,
+    [`${to}/krNet`]:   (toCur.krNet   || 0) + amountKr,
+    [`${to}/net`]:     (toCur.net     || 0) + amountKr
+  });
 }
 
 export function listenConfirmations(groupCode, callback) {
