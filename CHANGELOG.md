@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-06-11
+- Fix: appen återgår nu till sessions-skärmen (inte saldo-skärmen) när mobilen vaknar från skärmsläckaren
+
 ## 2026-05-28
 - Fix: confirmTransaction/unconfirmTransaction är nu idempotenta och atomära – samma betalning kan inte dubbelregistreras (löste bugg där saldo blev fel efter bekräftelse, t.ex. mottagare på -192 kr trots betald skuld)
 - Bump: SW-cache till v14 så alla klienter får den fixade firebase.js

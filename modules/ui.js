@@ -37,6 +37,13 @@ export function showScreen(screenId) {
   // Show/hide bottom nav
   const nav = document.getElementById('bottom-nav');
   nav.classList.toggle('hidden', screenId === 'lobby');
+
+  // Persist active screen so we can restore it after wake-from-sleep
+  if (screenId !== 'lobby') {
+    localStorage.setItem('blackbook_active_screen', screenId);
+  } else {
+    localStorage.removeItem('blackbook_active_screen');
+  }
 }
 
 // ===== BALANCES =====

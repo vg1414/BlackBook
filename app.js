@@ -302,8 +302,10 @@ function onSessionsUpdate() {
   if (!state.initialNavDone) {
     state.initialNavDone = true;
     if (state.activeSessionId) {
-      showScreen('dashboard');
+      const lastScreen = localStorage.getItem('blackbook_active_screen');
+      const targetScreen = lastScreen === 'session' ? 'session' : 'dashboard';
       document.getElementById('bottom-nav').classList.remove('hidden');
+      showScreen(targetScreen);
     }
     // Ingen aktiv session → stanna kvar på lobby
   }
