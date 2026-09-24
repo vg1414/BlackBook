@@ -64,7 +64,7 @@ function showDemoSession() {
         <div class="header-actions">
           <button class="btn-icon btn-icon--chart" id="ob-demo-chart">📈</button>
           <button class="btn-icon" id="ob-demo-settings">⚙</button>
-          <button class="btn-text btn-danger" id="ob-demo-end" style="pointer-events:none">Avsluta session</button>
+          <button class="btn-text btn-danger" id="ob-demo-end" style="pointer-events:none">Avsluta</button>
         </div>
       </header>
       <div class="screen-content session-screen-content">

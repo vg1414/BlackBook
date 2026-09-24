@@ -1,8 +1,9 @@
-const CACHE_NAME = 'blackbook-v14';
+const CACHE_NAME = 'blackbook-v15';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/style.css',
+  '/refresh.css',
   '/app.js',
   '/modules/firebase.js',
   '/modules/settlement.js',

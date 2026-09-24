@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-24
+- Design: ny visuell uppfräschning "svart läderbok med guldpressning" (ny fil refresh.css) – läderstruktur, guldfolie-skimmer på knappar och rubriker, sydda guldsömmar, flytande guldstoft i lobbyn
+- Design: ledaren i saldolistan får guldkant, krona och glans; mjukare grönt/rött; avatarer som präglade mynt
+- Design: flytande bottenmeny med SVG-ikoner (ersätter emojis), SVG-ikoner i headers, FAB som guldmynt
+- Design: anteckningsblocket i sessionen är nu en pergamentsida; svävande totalpanel; kompakt "Avsluta"-knapp
+- Design: modaler som läderark, gruppkoden visas stort med knappar under
+- Typsnitt: Manrope för brödtext (Playfair Display + Caveat kvar)
+- Fix: "Fredagspoker"-exempel → "Fredagskväll"; "(Du)" → guldbricka "Du"; odefinierad --positive-färg i historikchips
+- Bump: SW-cache till v15, refresh.css cachas
+
 ## 2026-06-11
 - Fix: appen återgår nu till sessions-skärmen (inte saldo-skärmen) när mobilen vaknar från skärmsläckaren
 

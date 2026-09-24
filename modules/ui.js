@@ -80,7 +80,7 @@ export function renderBalances(balances, players, currentPlayerId, totals, activ
       <div class="balance-item ${cls}">
         <div class="player-avatar" style="background:${player.color}20;color:${player.color}">${initial}</div>
         <div class="balance-info">
-          <span class="balance-name">${escHtml(player.name)}${isYou ? '<span class="balance-you">(Du)</span>' : ''}</span>
+          <span class="balance-name">${escHtml(player.name)}${isYou ? '<span class="balance-you">Du</span>' : ''}</span>
         </div>
         <span class="balance-amount ${amtCls}">${display}</span>
       </div>
@@ -516,8 +516,8 @@ export function buildSessionStatsHTML(rounds, playerIds, players, totals, pointV
     <div class="${compact ? 'sd-body sd-body--compact' : 'sd-body'}">
 
       <div class="sd-meta-row">
-        ${showUnitToggle ? `<button class="btn-icon btn-icon--chart" id="btn-detail-chart">📈</button>` : ''}
-        <span class="sd-meta-chip">🃏 ${rounds.length} rundor</span>
+        ${showUnitToggle ? `<button class="btn-icon btn-icon--chart" id="btn-detail-chart" aria-label="Diagram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/><path d="M15 7h3v3"/></svg></button>` : ''}
+        <span class="sd-meta-chip">↻ ${rounds.length} rundor</span>
         <span class="sd-meta-chip">⏱ ${durationStr}</span>
         ${totalMins !== null && rounds.length > 0 ? `<span class="sd-meta-chip">⏱ ${(totalMins / rounds.length).toFixed(1)} min/runda</span>` : ''}
         ${showUnitToggle && storedPointValue ? `<button class="btn-detail-unit${detailUnitMode === 'kr' ? ' btn-detail-unit-active' : ''}" id="btn-detail-unit-toggle">${detailUnitMode === 'kr' ? 'kr' : 'p'}</button>` : ''}
@@ -967,7 +967,7 @@ export function renderStats(sessions, players, entries) {
     <div class="stats-section">
       <div class="stats-section-header">
         <h3 class="stats-section-title">Gruppen</h3>
-        <button id="stats-chart-btn" class="stats-chart-inline-btn" title="Visa diagram" aria-label="Öppna diagram">📈</button>
+        <button id="stats-chart-btn" class="stats-chart-inline-btn" title="Visa diagram" aria-label="Öppna diagram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/><path d="M15 7h3v3"/></svg></button>
       </div>
       <div class="stats-grid">
         <div class="stat-card">

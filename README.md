@@ -21,7 +21,7 @@ En PWA-app för att hålla reda på skulder, vinster och förluster bland en gru
 
 ## Design
 
-Svart/guld (#1a1a1a / #d4af37), mobilfirst
+Svart läderbok med guldpressning (#110e0b / #d4af37), mobilfirst. Grundstil i `style.css`, visuell uppfräschning i `refresh.css`.
 
 ## Kom igång
 
