@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-24 (del 2)
+- Ny: egen bekräftelseruta i guld/läder (modules/dialog.js) ersätter webbläsarens confirm() – Avsluta, Fortsätt, Radera, Bekräfta/Ångra betalning, Lämna grupp, Ta bort spelare
+- Ny: rullande siffror (modules/countup.js) – saldo och totaler på startsidan, totalpanelen i sessionen, statistikkorten räknas upp från 0
+- Ny: Duell på Statistik-sidan – välj två spelare och jämför sessionsvinster, resultat ihop, snitt/session och bästa runda
+- Design: diagrammen i guld/läder – guldig nollinje, glödande linjer, läder-tooltip
+- Bump: SW-cache till v16 (dialog.js och countup.js cachas)
+
 ## 2026-09-24
 - Design: ny visuell uppfräschning "svart läderbok med guldpressning" (ny fil refresh.css) – läderstruktur, guldfolie-skimmer på knappar och rubriker, sydda guldsömmar, flytande guldstoft i lobbyn
 - Design: ledaren i saldolistan får guldkant, krona och glans; mjukare grönt/rött; avatarer som präglade mynt

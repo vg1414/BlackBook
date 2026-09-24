@@ -21,6 +21,8 @@ import {
 import { formatPoints } from './modules/settlement.js';
 import { submitQuickResults, endSession, undoEntry } from './modules/session.js';
 import { sekToOre, oreToSek } from './modules/settlement.js';
+import { goldConfirm } from './modules/dialog.js';
+import { rollAll, rollFromZero } from './modules/countup.js';
 import { startOnboarding, startLobbyGuide, showLobbyGuideForced, showSessionGuideForced, showSessionGuideFromStart } from './modules/onboarding.js';
 
 function escHtml(str) {
@@ -556,7 +558,7 @@ function renderSessionRounds() {
       return `<div class="total-entry ${cls}">
         <span class="total-dot" style="background:${p.color}"></span>
         <span class="total-name">${p.name}</span>
-        <span class="total-value">${display}</span>
+        <span class="total-value" data-roll="st-${state.activeSessionId}-${id}-${pointValue ? 'kr' : 'p'}">${display}</span>
       </div>`;
     }).join('');
     totalHtml = `<div class="rounds-total-row" style="--total-cols:${cols}">${totalParts}</div>`;
@@ -573,6 +575,7 @@ function renderSessionRounds() {
     document.getElementById('screen-session').appendChild(stickyEl);
   }
   stickyEl.innerHTML = totalHtml || '';
+  rollAll(stickyEl);
 }
 
 // ===== QUICK MODE LOGIC =====
@@ -734,6 +737,7 @@ function bindEvents() {
       }
       showScreen(screen);
       updateUnitToggleBtn();
+      if (screen === 'stats') rollFromZero(document.querySelectorAll('#stats-content .stat-value'));
     });
   });
 
@@ -1197,8 +1201,8 @@ async function handleConfirmCreateName() {
   setTimeout(() => startOnboarding(code, state.playerId), 800);
 }
 
-function handleLeaveGroup() {
-  if (!confirm('Lämna gruppen? Din data bevaras.')) return;
+async function handleLeaveGroup() {
+  if (!await goldConfirm({ title: 'Lämna gruppen?', message: 'Din data bevaras och du kan gå med igen med gruppkoden.', okText: 'Lämna', danger: true })) return;
   state.unsubscribers.forEach(fn => fn());
   state.unsubscribers = [];
   clearSavedGroup();
@@ -1312,7 +1316,7 @@ async function doStartSession() {
 
 async function handleCloseSession() {
   if (!state.activeSessionId) return;
-  if (!confirm('Stäng sessionen? Resultaten sparas.')) return;
+  if (!await goldConfirm({ title: 'Avsluta sessionen?', message: 'Resultaten sparas och läggs till i saldot.', okText: 'Avsluta' })) return;
   await endSession(state.groupCode, state.activeSessionId);
   await recalcTotals(state.groupCode);
   showScreen('dashboard');
@@ -1323,7 +1327,7 @@ async function handleConfirmTransaction(from, to, amount, amountKr) {
   const fromName = state.players[from]?.name || from;
   const toName = state.players[to]?.name || to;
   const displayAmt = Math.abs(Math.round(amountKr / 100)) + ' kr';
-  if (!confirm(`Har ${fromName} betalat ${toName} ${displayAmt}?`)) return;
+  if (!await goldConfirm({ title: 'Bekräfta betalning', message: `Har ${fromName} betalat ${displayAmt} till ${toName}?`, okText: 'Ja, betalt' })) return;
   await confirmTransaction(state.groupCode, from, to, amount, amountKr);
   showToast('Transaktion bekräftad');
 }
@@ -1332,7 +1336,7 @@ async function handleUnconfirmTransaction(from, to, amount, amountKr) {
   const fromName = state.players[from]?.name || from;
   const toName = state.players[to]?.name || to;
   const displayAmt = Math.abs(Math.round(amountKr / 100)) + ' kr';
-  if (!confirm(`Ångra bekräftelsen att ${fromName} betalat ${toName} ${displayAmt}?`)) return;
+  if (!await goldConfirm({ title: 'Ångra bekräftelsen?', message: `Betalningen från ${fromName} till ${toName} (${displayAmt}) markeras som obetald igen.`, okText: 'Ångra', danger: true })) return;
   await unconfirmTransaction(state.groupCode, from, to, amount, amountKr);
   showToast('Bekräftelse ångrad');
 }
@@ -1341,7 +1345,7 @@ async function handleDeleteActiveSession() {
   if (!state.activeSessionId) return;
   const session = state.sessions[state.activeSessionId];
   const label = session?.name || 'Session';
-  if (!confirm(`Radera "${label}"? Detta går inte att ångra.`)) return;
+  if (!await goldConfirm({ title: `Radera "${label}"?`, message: 'Detta går inte att ångra.', okText: 'Radera', danger: true })) return;
   await deleteSession(state.groupCode, state.activeSessionId);
   showScreen('dashboard');
   showToast('Session raderad');
@@ -1349,6 +1353,58 @@ async function handleDeleteActiveSession() {
 
 let chartInstance = null;
 let pendingChartData = null; // sparas tills fliken öppnas
+
+// ===== DIAGRAMTEMA (guld/läder) =====
+if (window.Chart) {
+  Chart.defaults.font.family = "'Manrope', -apple-system, sans-serif";
+  Chart.defaults.color = '#8f8676';
+}
+
+const CHART_TOOLTIP_THEME = {
+  backgroundColor: 'rgba(28, 23, 18, 0.96)',
+  titleColor: '#f0d57a',
+  titleFont: { family: "'Playfair Display', serif", style: 'italic', size: 13, weight: '700' },
+  bodyColor: '#f3ece0',
+  bodyFont: { weight: '600' },
+  borderColor: 'rgba(212, 175, 55, 0.45)',
+  borderWidth: 1,
+  cornerRadius: 12,
+  padding: 10,
+  boxPadding: 4
+};
+
+const CHART_GRID_X = { color: 'rgba(212, 175, 55, 0.05)' };
+// Nollinjen ritas i guld, övriga linjer svagt
+const CHART_GRID_Y = {
+  color: c => (c.tick && c.tick.value === 0 ? 'rgba(212, 175, 55, 0.5)' : 'rgba(212, 175, 55, 0.07)'),
+  lineWidth: c => (c.tick && c.tick.value === 0 ? 1.5 : 1)
+};
+
+// Mjuk glöd runt varje linje i spelarens färg
+const chartGlowPlugin = {
+  id: 'goldGlow',
+  beforeDatasetDraw(chart, args) {
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.shadowColor = args.meta.dataset?.options?.borderColor || 'rgba(212,175,55,0.6)';
+    ctx.shadowBlur = 10;
+  },
+  afterDatasetDraw(chart) {
+    chart.ctx.restore();
+  }
+};
+
+function styleDataset(ds) {
+  return {
+    ...ds,
+    borderWidth: 2.5,
+    pointBackgroundColor: '#110e0b',
+    pointBorderColor: ds.borderColor,
+    pointBorderWidth: 2,
+    pointHoverBackgroundColor: ds.borderColor,
+    pointHoverBorderColor: '#fff1c2'
+  };
+}
 
 function initChartFromPending() {
   if (!pendingChartData) return;
@@ -1376,19 +1432,15 @@ function initChartFromPending() {
 
   const ctx = document.getElementById('session-chart').getContext('2d');
   chartInstance = new Chart(ctx, {
-    plugins: [drawPlugin],
+    plugins: [drawPlugin, chartGlowPlugin],
     type: 'line',
-    data: { labels, datasets },
+    data: { labels, datasets: datasets.map(styleDataset) },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         tooltip: {
-          backgroundColor: '#1a1a1a',
-          titleColor: '#f0f0f0',
-          bodyColor: '#f0f0f0',
-          borderColor: '#444',
-          borderWidth: 1,
+          ...CHART_TOOLTIP_THEME,
           usePointStyle: true,
           callbacks: {
             label(context) {
@@ -1404,18 +1456,18 @@ function initChartFromPending() {
         },
         legend: {
           labels: {
-            color: '#f0f0f0',
-            font: { size: 12 },
+            color: '#f3ece0',
+            font: { size: 12, weight: '600' },
             usePointStyle: true,
-            pointStyle: 'rect',
+            pointStyle: 'circle',
             padding: 12,
             generateLabels(chart) {
               return chart.data.datasets.map((ds, i) => ({
                 text: ds.label,
                 fillStyle: ds.borderColor,
                 strokeStyle: ds.borderColor,
-                pointStyle: 'rect',
-                fontColor: '#f0f0f0',
+                pointStyle: 'circle',
+                fontColor: '#f3ece0',
                 lineWidth: 0,
                 hidden: !chart.isDatasetVisible(i),
                 datasetIndex: i
@@ -1426,13 +1478,14 @@ function initChartFromPending() {
       },
       animation: false,
       scales: {
-        x: { ticks: { color: '#888' }, grid: { color: '#2e2e2e' } },
+        x: { ticks: { color: '#8f8676' }, grid: CHART_GRID_X, border: { display: false } },
         y: {
           ticks: {
-            color: '#888',
+            color: '#8f8676',
             callback: v => v + ' ' + unitLabel
           },
-          grid: { color: '#2e2e2e' }
+          grid: CHART_GRID_Y,
+          border: { display: false }
         }
       }
     }
@@ -1546,7 +1599,7 @@ function handleOpenChart(sessionId, showChartDirectly = false) {
       chartBtn.id = 'btn-chart-open-diagram';
       chartBtn.className = 'btn-open-chart-from-stats';
       chartBtn.title = 'Visa diagram';
-      chartBtn.innerHTML = '📈';
+      chartBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/><path d="M15 7h3v3"/></svg>';
       metaRow.prepend(chartBtn);
     }
 
@@ -1647,20 +1700,16 @@ function buildStatsChart() {
 
   const ctx = document.getElementById('stats-chart-canvas').getContext('2d');
   statsChartInstance = new Chart(ctx, {
-    plugins: [drawPlugin],
+    plugins: [drawPlugin, chartGlowPlugin],
     type: 'line',
-    data: { labels, datasets },
+    data: { labels, datasets: datasets.map(styleDataset) },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
       plugins: {
         tooltip: {
-          backgroundColor: '#1a1a1a',
-          titleColor: '#f0f0f0',
-          bodyColor: '#f0f0f0',
-          borderColor: '#444',
-          borderWidth: 1,
+          ...CHART_TOOLTIP_THEME,
           usePointStyle: true,
           callbacks: {
             title(items) { return `Session ${items[0].label}`; },
@@ -1677,18 +1726,18 @@ function buildStatsChart() {
         },
         legend: {
           labels: {
-            color: '#f0f0f0',
-            font: { size: 12 },
+            color: '#f3ece0',
+            font: { size: 12, weight: '600' },
             usePointStyle: true,
-            pointStyle: 'rect',
+            pointStyle: 'circle',
             padding: 12,
             generateLabels(chart) {
               return chart.data.datasets.map((ds, i) => ({
                 text: ds.label,
                 fillStyle: ds.borderColor,
                 strokeStyle: ds.borderColor,
-                pointStyle: 'rect',
-                fontColor: '#f0f0f0',
+                pointStyle: 'circle',
+                fontColor: '#f3ece0',
                 lineWidth: 0,
                 hidden: !chart.isDatasetVisible(i),
                 datasetIndex: i
@@ -1699,13 +1748,15 @@ function buildStatsChart() {
       },
       scales: {
         x: {
-          ticks: { color: '#888' },
-          grid: { color: '#2e2e2e' },
-          title: { display: true, text: 'Session', color: '#888', font: { size: 11 } }
+          ticks: { color: '#8f8676' },
+          grid: CHART_GRID_X,
+          border: { display: false },
+          title: { display: true, text: 'Session', color: '#8f8676', font: { size: 11 } }
         },
         y: {
-          ticks: { color: '#888', callback: v => (v > 0 ? '+' : '') + v + ' ' + unitLabel },
-          grid: { color: '#2e2e2e' }
+          ticks: { color: '#8f8676', callback: v => (v > 0 ? '+' : '') + v + ' ' + unitLabel },
+          grid: CHART_GRID_Y,
+          border: { display: false }
         }
       }
     }
@@ -1748,7 +1799,7 @@ async function handleReopenSession(sessionId) {
     showToast('Stäng den aktiva sessionen först');
     return;
   }
-  if (!confirm('Fortsätta denna session?')) return;
+  if (!await goldConfirm({ title: 'Fortsätta sessionen?', message: 'Sessionen blir aktiv igen så att ni kan spela vidare.', okText: 'Fortsätt' })) return;
   await reopenSession(state.groupCode, sessionId);
   state.activeSessionId = sessionId;
   showScreen('session');
@@ -1758,7 +1809,7 @@ async function handleReopenSession(sessionId) {
 async function handleDeleteSession(sessionId) {
   const session = state.sessions[sessionId];
   const label = session?.name || 'Session';
-  if (!confirm(`Radera "${label}"? Detta går inte att ångra.`)) return;
+  if (!await goldConfirm({ title: `Radera "${label}"?`, message: 'Detta går inte att ångra.', okText: 'Radera', danger: true })) return;
   await deleteSession(state.groupCode, sessionId);
   await recalcTotals(state.groupCode);
   closeModal('modal-session-detail');
@@ -1812,7 +1863,7 @@ function openGroupModal() {
 async function handleRemovePlayer(playerId) {
   const player = state.players[playerId];
   if (!player) return;
-  if (!confirm(`Ta bort ${player.name} från gruppen?`)) return;
+  if (!await goldConfirm({ title: `Ta bort ${player.name}?`, message: 'Spelaren tas bort från gruppen.', okText: 'Ta bort', danger: true })) return;
   await deletePlayer(state.groupCode, playerId);
   showToast(`${player.name} borttagen`);
 }

@@ -3,6 +3,7 @@
  * DOM rendering helpers
  */
 import { minimizePayments, oreToSek, formatAmount, formatPoints } from './settlement.js';
+import { rollAll } from './countup.js';
 
 // ===== TOAST =====
 
@@ -82,10 +83,11 @@ export function renderBalances(balances, players, currentPlayerId, totals, activ
         <div class="balance-info">
           <span class="balance-name">${escHtml(player.name)}${isYou ? '<span class="balance-you">Du</span>' : ''}</span>
         </div>
-        <span class="balance-amount ${amtCls}">${display}</span>
+        <span class="balance-amount ${amtCls}" data-roll="bal-${id}-${showKr ? 'kr' : 'p'}">${display}</span>
       </div>
     `;
   }).join('');
+  rollAll(container);
 }
 
 // ===== SETTLEMENTS =====
@@ -184,10 +186,11 @@ export function renderTotals(totals, players, showKr, sessions) {
       <div class="totals-item">
         <div class="player-avatar" style="background:${player.color}20;color:${player.color}">${initial}</div>
         <span class="totals-name">${escHtml(player.name)}</span>
-        <span class="totals-amount ${amtCls}">${display}</span>
+        <span class="totals-amount ${amtCls}" data-roll="tot-${id}-${showKr ? 'kr' : 'p'}">${display}</span>
       </div>
     `;
   }).join('');
+  rollAll(container);
 }
 
 export function renderConfirmedTransactions(players, confirmations = {}) {
@@ -1035,7 +1038,15 @@ export function renderStats(sessions, players, entries) {
       `;
     }).join('');
 
-  container.innerHTML = globalHtml + `<div class="stats-section"><h3 class="stats-section-title">Per spelare</h3>${playersHtml}</div>`;
+  const duelHtml = `
+    <div class="stats-section" id="duel-section">
+      <h3 class="stats-section-title">Duell</h3>
+      <div class="duel" id="duel"></div>
+    </div>
+  `;
+
+  container.innerHTML = globalHtml + duelHtml + `<div class="stats-section"><h3 class="stats-section-title">Per spelare</h3>${playersHtml}</div>`;
+  setupDuel(document.getElementById('duel'), sessionData, players, useKr);
 
   // FAB-rad för p/kr-switch + diagram-knapp – fast position, följer med vid scroll
   const existing = document.getElementById('stats-unit-fab');
@@ -1055,6 +1066,121 @@ export function renderStats(sessions, players, entries) {
 
   fabRow.appendChild(fab);
   document.getElementById('screen-stats').appendChild(fabRow);
+}
+
+// ===== DUELL =====
+// Jämför två spelare i de avslutade sessioner där båda var med.
+// Vinnare av en session (i duellen) = den av de två som slutade med högst resultat.
+
+let duelA = null;
+let duelB = null;
+
+function computeDuel(sessionData, a, b, useKr) {
+  const toUnit = (amount, pv) => (amount / 100) * (useKr ? pv : 1);
+  const shared = sessionData.filter(d => d.playerIds.includes(a) && d.playerIds.includes(b));
+  const res = { sessions: shared.length, winsA: 0, winsB: 0, ties: 0, sumA: 0, sumB: 0, bestA: null, bestB: null };
+  shared.forEach(({ playerTotals, rounds, pointValue }) => {
+    const ta = playerTotals[a] || 0;
+    const tb = playerTotals[b] || 0;
+    if (ta > tb) res.winsA++;
+    else if (tb > ta) res.winsB++;
+    else res.ties++;
+    res.sumA += toUnit(ta, pointValue);
+    res.sumB += toUnit(tb, pointValue);
+    rounds.forEach(round => round.forEach(e => {
+      const v = toUnit(e.amount, pointValue);
+      if (e.playerId === a && (res.bestA === null || v > res.bestA)) res.bestA = v;
+      if (e.playerId === b && (res.bestB === null || v > res.bestB)) res.bestB = v;
+    }));
+  });
+  return res;
+}
+
+function setupDuel(el, sessionData, players, useKr) {
+  if (!el) return;
+  // Bara spelare som varit med i minst en avslutad session
+  const ids = Object.keys(players).filter(pid => sessionData.some(d => d.playerIds.includes(pid)));
+  if (ids.length < 2) {
+    document.getElementById('duel-section').style.display = 'none';
+    return;
+  }
+
+  // Standardval: paret som spelat flest sessioner ihop
+  if (!ids.includes(duelA) || !ids.includes(duelB) || duelA === duelB) {
+    let best = -1;
+    ids.forEach((a, i) => ids.slice(i + 1).forEach(b => {
+      const n = sessionData.filter(d => d.playerIds.includes(a) && d.playerIds.includes(b)).length;
+      if (n > best) { best = n; duelA = a; duelB = b; }
+    }));
+  }
+
+  const unit = useKr ? 'kr' : 'p';
+  const fmt = v => (v > 0 ? '+' : v < 0 ? '-' : '') + Math.abs(Math.round(v)) + ' ' + unit;
+  const options = sel => ids.map(pid =>
+    `<option value="${pid}"${pid === sel ? ' selected' : ''}>${escHtml(players[pid].name)}</option>`).join('');
+  const avatar = p => `<div class="player-avatar duel-avatar" style="background:${p.color}20;color:${p.color}">${escHtml(p.name.charAt(0).toUpperCase())}</div>`;
+
+  function render() {
+    const pa = players[duelA];
+    const pb = players[duelB];
+    const d = computeDuel(sessionData, duelA, duelB, useKr);
+    const decided = d.winsA + d.winsB;
+    const shareA = decided > 0 ? (d.winsA / decided) * 100 : 50;
+    const lead = d.winsA > d.winsB ? 'a' : d.winsB > d.winsA ? 'b' : '';
+
+    const row = (label, va, vb, betterA, betterB) => `
+      <div class="duel-row">
+        <span class="duel-val ${betterA ? 'is-better' : ''}">${va}</span>
+        <span class="duel-label">${label}</span>
+        <span class="duel-val ${betterB ? 'is-better' : ''}">${vb}</span>
+      </div>`;
+
+    const body = d.sessions === 0
+      ? `<p class="duel-empty">${escHtml(pa.name)} och ${escHtml(pb.name)} har inte spelat någon session ihop än.</p>`
+      : `
+        <div class="duel-score">
+          <div class="duel-side ${lead === 'a' ? 'is-lead' : ''}">${avatar(pa)}</div>
+          <div class="duel-tally">
+            <span class="duel-num">${d.winsA}</span><span class="duel-dash">–</span><span class="duel-num">${d.winsB}</span>
+            <span class="duel-sub">${d.sessions} ${d.sessions === 1 ? 'session' : 'sessioner'} ihop${d.ties ? ` · ${d.ties} lika` : ''}</span>
+          </div>
+          <div class="duel-side ${lead === 'b' ? 'is-lead' : ''}">${avatar(pb)}</div>
+        </div>
+        <div class="duel-bar" role="img" aria-label="${escHtml(pa.name)} ${d.winsA} vinster, ${escHtml(pb.name)} ${d.winsB} vinster">
+          <span style="width:${shareA}%;background:${pa.color}"></span>
+          <span style="width:${100 - shareA}%;background:${pb.color}"></span>
+        </div>
+        <div class="duel-rows">
+          ${row('Resultat ihop', fmt(d.sumA), fmt(d.sumB), d.sumA > d.sumB, d.sumB > d.sumA)}
+          ${row('Snitt/session', fmt(d.sumA / d.sessions), fmt(d.sumB / d.sessions), d.sumA > d.sumB, d.sumB > d.sumA)}
+          ${row('Bästa runda', d.bestA > 0 ? fmt(d.bestA) : '–', d.bestB > 0 ? fmt(d.bestB) : '–', (d.bestA || 0) > (d.bestB || 0), (d.bestB || 0) > (d.bestA || 0))}
+        </div>`;
+
+    el.innerHTML = `
+      <div class="duel-pickers">
+        <select class="duel-select" data-side="a" aria-label="Spelare 1">${options(duelA)}</select>
+        <span class="duel-vs">vs</span>
+        <select class="duel-select" data-side="b" aria-label="Spelare 2">${options(duelB)}</select>
+      </div>
+      ${body}
+    `;
+
+    el.querySelectorAll('.duel-select').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const val = sel.value;
+        if (sel.dataset.side === 'a') {
+          if (val === duelB) duelB = duelA; // byt plats om samma spelare valts
+          duelA = val;
+        } else {
+          if (val === duelA) duelA = duelB;
+          duelB = val;
+        }
+        render();
+      });
+    });
+  }
+
+  render();
 }
 
 // ===== STATS CHART UNIT =====

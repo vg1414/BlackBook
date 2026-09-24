@@ -1,4 +1,4 @@
-const CACHE_NAME = 'blackbook-v15';
+const CACHE_NAME = 'blackbook-v16';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -9,6 +9,8 @@ const STATIC_ASSETS = [
   '/modules/settlement.js',
   '/modules/ui.js',
   '/modules/session.js',
+  '/modules/dialog.js',
+  '/modules/countup.js',
   '/manifest.json',
   '/favicon.png',
   '/apple-touch-icon-180x180.png'
