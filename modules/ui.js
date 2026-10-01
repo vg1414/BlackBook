@@ -1122,7 +1122,52 @@ export function renderStats(sessions, players, entries) {
       ? hlCard('sd-highlight-low', '<span class="sd-wl-loss">▼</span>', 'Djupaste botten i en session', fmtUnitSigned(records.low.value), records.low.pid, records.low.sessionName) : '',
   ].join('');
 
-  const highlightsHtml = highlightCards.trim() ? `
+  // Med exakt två spelare visas bådas siffror sida vid sida i stället för bara rekordhållaren
+  // (streak, bästa runda och vunna rundor är inte bara varandras spegelbild)
+  const played = Object.keys(players).filter(pid => sessionData.some(d => d.playerIds.includes(pid)));
+  let versusHtml = '';
+  if (played.length === 2) {
+    const [a, b] = played;
+    const pa = players[a], pb = players[b];
+    const psA = playerStats[a], psB = playerStats[b];
+    const rsA = roundStats[a], rsB = roundStats[b];
+    // cmpA/cmpB = talen som jämförs; den med högst markeras i guld
+    const row = (label, va, vb, cmpA, cmpB) => `
+      <div class="duel-row">
+        <span class="duel-val ${cmpA > cmpB ? 'is-better' : ''}">${va}</span>
+        <span class="duel-label">${label}</span>
+        <span class="duel-val ${cmpB > cmpA ? 'is-better' : ''}">${vb}</span>
+      </div>`;
+    const streak = n => n > 0 ? `${n} i rad` : '–';
+    const bestRnd = ps => ps.highestRound > 0 ? fmtVal(ps.highestRound, ps.highestRoundPV) : '–';
+    const signed = v => v !== null ? fmtUnitSigned(v) : '–';
+    const head = (p, right) => `
+      <span class="hl-versus-player${right ? ' is-right' : ''}">
+        <span class="player-avatar sd-avatar-sm" style="background:${p.color}20;color:${p.color}">${escHtml(p.name.charAt(0))}</span>
+        <span class="hl-versus-name">${escHtml(p.name)}</span>
+      </span>`;
+
+    versusHtml = `
+      <div class="duel hl-versus">
+        <div class="hl-versus-head">${head(pa, false)}<span class="duel-vs">vs</span>${head(pb, true)}</div>
+        <div class="duel-rows">
+          ${row('Längsta streak', streak(rsA.bestStreak), streak(rsB.bestStreak), rsA.bestStreak, rsB.bestStreak)}
+          ${row('Bästa runda', bestRnd(psA), bestRnd(psB), psA.highestRound, psB.highestRound)}
+          ${row('Vunna rundor', rsA.wins, rsB.wins, rsA.wins, rsB.wins)}
+          ${row('Snitt per vunnen runda', rsA.wins > 0 ? fmtUnitAvg(rsA.winSum / rsA.wins) : '–', rsB.wins > 0 ? fmtUnitAvg(rsB.winSum / rsB.wins) : '–', rsA.wins > 0 ? rsA.winSum / rsA.wins : 0, rsB.wins > 0 ? rsB.winSum / rsB.wins : 0)}
+          ${row('Sessionsvinster', psA.wins, psB.wins, psA.wins, psB.wins)}
+          ${row('Topp i en session', signed(rsA.sessionPeak), signed(rsB.sessionPeak), rsA.sessionPeak || 0, rsB.sessionPeak || 0)}
+          ${row('Botten i en session', signed(rsA.sessionLow), signed(rsB.sessionLow), rsA.sessionLow || 0, rsB.sessionLow || 0)}
+        </div>
+      </div>`;
+  }
+
+  const highlightsHtml = versusHtml ? `
+    <div class="stats-section">
+      <h3 class="stats-section-title">Höjdpunkter</h3>
+      ${versusHtml}
+    </div>
+  ` : highlightCards.trim() ? `
     <div class="stats-section">
       <h3 class="stats-section-title">Höjdpunkter</h3>
       <div class="sd-highlights">${highlightCards}</div>

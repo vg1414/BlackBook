@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-01 (del 3)
+- Ny: levande splash – boken landar med en studs och gungar, titeln skrivs fram med en glödande pennspets, en guldlinje dras under, guldstoft stiger i bakgrunden
+- Ny: "dagens rad" på splashen – en slumpad handskriven rad som byts varje gång appen öppnas
+- Ändrat: splashen visas 2,4 s räknat från sidladdning (förut 1,8 s från init) och kan hoppas över med ett tryck
+- Ny: Höjdpunkter för två spelare visar bådas siffror sida vid sida (streak, bästa runda, vunna rundor, snitt per vunnen runda, sessionsvinster, topp och botten)
+- Fix: statistikkorten sträcks inte längre ut över hela fönstret på datorskärm (max 560 px, centrerat)
+- Bump: SW-cache till v19
+
 ## 2026-10-01 (del 2)
 - Ny: formkurva i saldolistan – en prick per session för spelarens fem senaste avslutade sessioner (grön = plus, röd = minus, grå = noll), nyast till höger
 - Ändrat: Duell på Statistik-sidan visas bara när minst tre spelare har spelat – med två spelare säger den samma sak som övrig statistik

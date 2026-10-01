@@ -31,11 +31,52 @@
 
   <!-- SPLASH SCREEN -->
   <div id="splash-screen">
+    <div class="splash-dust" aria-hidden="true">
+      <span style="--x:9%;--d:3.2s;--delay:0s"></span>
+      <span style="--x:21%;--d:2.6s;--delay:.5s;--s:2px;--drift:-10px"></span>
+      <span style="--x:33%;--d:3.6s;--delay:.2s"></span>
+      <span style="--x:46%;--d:2.8s;--delay:.9s;--s:4px"></span>
+      <span style="--x:57%;--d:3.4s;--delay:.1s;--s:2px;--drift:-14px"></span>
+      <span style="--x:68%;--d:2.5s;--delay:.7s"></span>
+      <span style="--x:79%;--d:3.8s;--delay:.3s;--s:2px"></span>
+      <span style="--x:90%;--d:3s;--delay:1.1s;--drift:-8px"></span>
+      <span style="--x:15%;--d:3.3s;--delay:1.4s;--s:4px"></span>
+    </div>
     <div class="splash-inner">
       <img src="blackbook.png" alt="Black Book" class="splash-book" />
-      <p class="splash-title">Black Book</p>
+      <div class="splash-title-wrap">
+        <p class="splash-title">Black Book</p>
+        <svg class="splash-underline" viewBox="0 0 220 14" aria-hidden="true"><path d="M4 8 C 48 2, 92 12, 140 6 S 198 4, 216 8" pathLength="1"/></svg>
+      </div>
+      <p class="splash-quip" id="splash-quip"></p>
     </div>
   </div>
+  <script>
+    // Dagens rad: en ny handskriven rad varje gång appen öppnas (aldrig samma två gånger i rad).
+    // Ligger inline så raden finns på plats innan app.js hunnit laddas.
+    (function () {
+      var quips = [
+        'Boken glömmer aldrig.',
+        'Allt står i boken.',
+        'Skriv upp det.',
+        'Vem bjuder i kväll?',
+        'Skulder har långt minne.',
+        'Bläcket har torkat.',
+        'Det jämnar ut sig. Kanske.',
+        'Siffrorna ljuger inte.',
+        'Ny kväll, nya rader.',
+        'Noll är också ett resultat.',
+        'Betala med ett leende.',
+        'Räkningen kommer alltid.'
+      ];
+      var last = -1;
+      try { last = parseInt(localStorage.getItem('blackbook_splash_quip'), 10); } catch (e) {}
+      var i = Math.floor(Math.random() * quips.length);
+      if (i === last) i = (i + 1) % quips.length;
+      try { localStorage.setItem('blackbook_splash_quip', i); } catch (e) {}
+      document.getElementById('splash-quip').textContent = quips[i];
+    })();
+  </script>
 
   <!-- TOAST -->
   <div id="toast" class="toast hidden"></div>

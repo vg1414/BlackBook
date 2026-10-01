@@ -82,10 +82,18 @@ function init() {
   // Splash screen
   const splash = document.getElementById('splash-screen');
   if (splash) {
-    setTimeout(() => {
+    const hideSplash = () => {
+      if (splash.classList.contains('splash-hiding')) return;
       splash.classList.add('splash-hiding');
-      splash.addEventListener('animationend', () => splash.remove(), { once: true });
-    }, 1800);
+      // Barnens animationer bubblar också hit – ta bara bort splashen när dess egen uttoning är klar
+      splash.addEventListener('animationend', e => {
+        if (e.animationName === 'splashFadeOut') splash.remove();
+      });
+    };
+    // Animationerna startar när sidan laddas, så räkna de 2,4 sekunderna därifrån (inte från init)
+    setTimeout(hideSplash, Math.max(0, 2400 - performance.now()));
+    // Ett tryck var som helst hoppar över
+    splash.addEventListener('click', hideSplash);
   }
 
 }
