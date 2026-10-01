@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-01
+- Ny: gruppstatistiken summerar nu all statistik från sessionerna – vunna/förlorade/oavgjorda rundor (med stapel och vinstprocent), bästa streak i rundor, snitt per runda, snitt per vunnen runda, bästa topp och djupaste botten i en enskild session
+- Ny: "Höjdpunkter" på Statistik-sidan – gruppens rekord (längsta streak, bästa runda, flest sessionsvinster, flest vunna rundor, högsta topp, djupaste botten) med vem som har rekordet och i vilken session
+- Ny: Gruppen-rutorna visar även rundor spelade, total speltid och min/runda
+- Ändrat: spelarkorten är uppdelade i Rundor / Saldo / Sessioner; "Högsta runda" för gruppen flyttad till Höjdpunkter
+- Bump: SW-cache till v17
+
 ## 2026-09-24 (del 2)
 - Ny: egen bekräftelseruta i guld/läder (modules/dialog.js) ersätter webbläsarens confirm() – Avsluta, Fortsätt, Radera, Bekräfta/Ångra betalning, Lämna grupp, Ta bort spelare
 - Ny: rullande siffror (modules/countup.js) – saldo och totaler på startsidan, totalpanelen i sessionen, statistikkorten räknas upp från 0

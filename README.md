@@ -10,7 +10,7 @@ En PWA-app för att hålla reda på skulder, vinster och förluster bland en gru
 - **Buy-in-läge** – registrera buy-in, rebuys och cashout per spelare
 - **Smart uppgörelse** – minimerar antal transaktioner (greedy-algoritm)
 - **Historik** – alla avslutade sessioner sparas permanent
-- **Statistik & Duell** – statistik per spelare och jämförelse mellan två spelare
+- **Statistik & Duell** – gruppens rekord (höjdpunkter), summerad statistik per spelare över alla sessioner (vunna/förlorade rundor, streak, snitt, topp/botten) och jämförelse mellan två spelare
 - **Diagram** – utveckling per session och över alla sessioner
 - **Soft delete** – ångra transaktioner utan att förlora historik
 - **PWA** – lägg till på hemskärm på iPhone och Android

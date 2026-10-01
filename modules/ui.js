@@ -794,6 +794,72 @@ export function renderClosedSessionsOnDashboard(sessions, players, entries, show
 
 // ===== STATISTICS =====
 
+// Summerar rundstatistiken från alla avslutade sessioner till gruppnivå.
+// Samma regler som i buildSessionStatsHTML, så gruppens siffror = summan av sessionernas.
+// Belopp räknas om till vald enhet (p eller kr) per session, eftersom poängvärdet kan skilja.
+function computeRoundStats(sessionData, players, useKr) {
+  const toUnit = (amount, pv) => (amount / 100) * (useKr ? pv : 1);
+  const per = {};
+  Object.keys(players).forEach(pid => {
+    per[pid] = {
+      rounds: 0, wins: 0, losses: 0, ties: 0,
+      sum: 0, winSum: 0, bestStreak: 0,
+      sessionPeak: null, sessionLow: null,
+    };
+  });
+  // Gruppens rekord: { pid, value, sessionName }
+  const records = { streak: null, peak: null, low: null };
+
+  sessionData.forEach(({ session, rounds, playerIds, pointValue }) => {
+    const ids = playerIds.filter(pid => per[pid]);
+    const sessionName = session.name || 'Session';
+    // Streak och löpande saldo börjar om på noll i varje session
+    const streak = {};
+    const bal = {};
+    ids.forEach(pid => { streak[pid] = 0; bal[pid] = 0; });
+
+    rounds.forEach(round => {
+      const amounts = {};
+      round.forEach(e => { amounts[e.playerId] = e.amount; });
+
+      ids.forEach(pid => {
+        const ps = per[pid];
+        const amt = amounts[pid] ?? 0;
+        if (pid in amounts) ps.rounds++;
+        if (amt > 0) {
+          ps.wins++;
+          ps.winSum += toUnit(amt, pointValue);
+          streak[pid]++;
+          if (streak[pid] > ps.bestStreak) ps.bestStreak = streak[pid];
+          if (!records.streak || streak[pid] > records.streak.value) {
+            records.streak = { pid, value: streak[pid], sessionName };
+          }
+        } else if (amt < 0) {
+          ps.losses++;
+          streak[pid] = 0;
+        } else {
+          ps.ties++;
+        }
+      });
+
+      round.forEach(e => {
+        if (bal[e.playerId] === undefined) return;
+        const ps = per[e.playerId];
+        const v = toUnit(e.amount, pointValue);
+        ps.sum += v;
+        bal[e.playerId] += v;
+        const b = bal[e.playerId];
+        if (b > 0 && (ps.sessionPeak === null || b > ps.sessionPeak)) ps.sessionPeak = b;
+        if (b < 0 && (ps.sessionLow === null || b < ps.sessionLow)) ps.sessionLow = b;
+        if (b > 0 && (!records.peak || b > records.peak.value)) records.peak = { pid: e.playerId, value: b, sessionName };
+        if (b < 0 && (!records.low || b < records.low.value)) records.low = { pid: e.playerId, value: b, sessionName };
+      });
+    });
+  });
+
+  return { per, records };
+}
+
 export function renderStats(sessions, players, entries) {
   const container = document.getElementById('stats-content');
   if (!container) return;
@@ -841,16 +907,30 @@ export function renderStats(sessions, players, entries) {
     // pointValue: kr per poäng. Fallback 1 (1p = 1kr) om saknas
     const pointValue = s._storedPointValue || s.pointValue || 1;
 
-    return { id, session: s, rounds, playerTotals, playerIds, pointValue };
+    // Speltid: första → sista posten (samma som i sessionsdetaljen). null om den inte går att mäta
+    const firstTs = sessionEntries[0]?.timestamp;
+    const lastTs = sessionEntries[sessionEntries.length - 1]?.timestamp;
+    const mins = firstTs && lastTs && lastTs > firstTs ? Math.round((lastTs - firstTs) / 60000) : null;
+
+    return { id, session: s, rounds, playerTotals, playerIds, pointValue, mins };
   });
 
   // === Globala stats ===
   const totalSessions = closed.length;
   const roundCounts = sessionData.map(d => d.rounds.length);
+  const totalRounds = roundCounts.reduce((a, b) => a + b, 0);
   const longestSession = Math.max(...roundCounts, 0);
   const avgSession = roundCounts.length > 0
-    ? (roundCounts.reduce((a, b) => a + b, 0) / roundCounts.length).toFixed(1)
+    ? (totalRounds / roundCounts.length).toFixed(1)
     : 0;
+
+  // Total speltid = summan av varje sessions speltid. Min/runda räknas bara på sessioner med mätbar tid
+  const timed = sessionData.filter(d => d.mins !== null);
+  const totalMins = timed.reduce((a, d) => a + d.mins, 0);
+  const timedRounds = timed.reduce((a, d) => a + d.rounds.length, 0);
+  const totalTimeStr = timed.length === 0 ? '–'
+    : totalMins >= 60 ? `${Math.floor(totalMins / 60)}h ${totalMins % 60}m` : `${totalMins} min`;
+  const minPerRoundStr = timedRounds > 0 ? (totalMins / timedRounds).toFixed(1) : '–';
 
   // Högsta poäng i en runda (globalt, per spelare) – spara sessionens pointValue med
   let highestRound = { playerId: null, amount: 0, pointValue: 1 };
@@ -959,13 +1039,59 @@ export function renderStats(sessions, players, entries) {
     return (points >= 0 ? '+' : '') + points.toFixed(0) + ' p';
   };
 
-  // Rendera
-  const highestRoundPlayer = highestRound.playerId && players[highestRound.playerId]
-    ? players[highestRound.playerId].name : '–';
-  const highestRoundVal = highestRound.amount !== 0
-    ? fmtVal(highestRound.amount, highestRound.pointValue)
-    : '–';
+  // Rundstatistik summerad från alla sessioner (redan omräknad till vald enhet)
+  const { per: roundStats, records } = computeRoundStats(sessionData, players, useKr);
+  const unit = useKr ? 'kr' : 'p';
+  const fmtUnitSigned = v => {
+    const r = Math.round(v);
+    return (r > 0 ? '+' : r < 0 ? '-' : '') + Math.abs(r) + ' ' + unit;
+  };
+  const fmtUnitAvg = v => {
+    const r = Math.round(v * 10) / 10;
+    return (r > 0 ? '+' : r < 0 ? '-' : '') + Math.abs(r).toFixed(1) + ' ' + unit;
+  };
 
+  // Rekordhållare: flest sessionsvinster och flest vunna rundor
+  let mostSessionWins = null, mostRoundWins = null;
+  Object.keys(players).forEach(pid => {
+    if (playerStats[pid].wins > (mostSessionWins ? playerStats[mostSessionWins].wins : 0)) mostSessionWins = pid;
+    if (roundStats[pid].wins > (mostRoundWins ? roundStats[mostRoundWins].wins : 0)) mostRoundWins = pid;
+  });
+
+  const hlCard = (cls, icon, title, value, pid, meta) => `
+    <div class="sd-highlight-card ${cls}">
+      <div class="sd-hl-icon">${icon}</div>
+      <div class="sd-hl-content">
+        <div class="sd-hl-title">${title}</div>
+        <div class="sd-hl-value">${value}</div>
+        <div class="sd-hl-who" style="color:${players[pid]?.color}">${escHtml(players[pid]?.name || '')}</div>
+        ${meta ? `<div class="stats-hl-meta">${escHtml(meta)}</div>` : ''}
+      </div>
+    </div>`;
+
+  const highlightCards = [
+    records.streak && records.streak.value > 1
+      ? hlCard('sd-highlight-streak', '🔥', 'Längsta streak', `${records.streak.value} i rad`, records.streak.pid, records.streak.sessionName) : '',
+    highestRound.playerId && players[highestRound.playerId]
+      ? hlCard('sd-highlight-best', '⚡', 'Bästa runda', fmtVal(highestRound.amount, highestRound.pointValue), highestRound.playerId) : '',
+    mostSessionWins
+      ? hlCard('sd-highlight-winner', '👑', 'Flest sessionsvinster', `${playerStats[mostSessionWins].wins} st`, mostSessionWins) : '',
+    mostRoundWins
+      ? hlCard('sd-highlight-rounds', '🎯', 'Flest vunna rundor', `${roundStats[mostRoundWins].wins} st`, mostRoundWins) : '',
+    records.peak
+      ? hlCard('sd-highlight-peak', '<span class="sd-wl-win">▲</span>', 'Högsta topp i en session', fmtUnitSigned(records.peak.value), records.peak.pid, records.peak.sessionName) : '',
+    records.low
+      ? hlCard('sd-highlight-low', '<span class="sd-wl-loss">▼</span>', 'Djupaste botten i en session', fmtUnitSigned(records.low.value), records.low.pid, records.low.sessionName) : '',
+  ].join('');
+
+  const highlightsHtml = highlightCards.trim() ? `
+    <div class="stats-section">
+      <h3 class="stats-section-title">Höjdpunkter</h3>
+      <div class="sd-highlights">${highlightCards}</div>
+    </div>
+  ` : '';
+
+  // Rendera
   const globalHtml = `
     <div class="stats-section">
       <div class="stats-section-header">
@@ -978,16 +1104,24 @@ export function renderStats(sessions, players, entries) {
           <div class="stat-label">Sessioner spelade</div>
         </div>
         <div class="stat-card">
+          <div class="stat-value">${totalRounds}</div>
+          <div class="stat-label">Rundor spelade</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${totalTimeStr}</div>
+          <div class="stat-label">Total speltid</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${minPerRoundStr}</div>
+          <div class="stat-label">Min/runda</div>
+        </div>
+        <div class="stat-card">
           <div class="stat-value">${longestSession}</div>
           <div class="stat-label">Längsta session (rundor)</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">${avgSession}</div>
           <div class="stat-label">Snitt rundor/session</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${highestRoundVal}</div>
-          <div class="stat-label">Högsta runda (${escHtml(highestRoundPlayer)})</div>
         </div>
       </div>
     </div>
@@ -1002,36 +1136,94 @@ export function renderStats(sessions, players, entries) {
         ? fmtValSigned(ps.peakBalance, ps.peakBalancePV) : '–';
       const lowest = ps.lowestBalance !== null && ps.lowestBalance < 0
         ? fmtValSigned(ps.lowestBalance, ps.lowestBalancePV) : '–';
+
+      const rs = roundStats[pid];
+      const sessionsPlayed = ps.wins + ps.losses;
+      const counted = rs.wins + rs.losses + rs.ties;
+      const decided = rs.wins + rs.losses;
+      const winPct = decided > 0 ? Math.round((rs.wins / decided) * 100) : null;
+      const seg = (cls, n) => n > 0 ? `<span class="${cls}" style="width:${(n / counted) * 100}%"></span>` : '';
+      const avgCls = v => v > 0 ? ' stat-card--positive' : v < 0 ? ' stat-card--negative' : '';
+      const avgRound = rs.rounds > 0 ? rs.sum / rs.rounds : null;
+      const avgWin = rs.wins > 0 ? rs.winSum / rs.wins : null;
+
       return `
         <div class="stats-player-card">
           <div class="stats-player-header">
             <div class="player-avatar" style="background:${p.color}20;color:${p.color}">${p.name.charAt(0)}</div>
             <span class="stats-player-name">${escHtml(p.name)}</span>
+            <span class="stats-player-meta">${sessionsPlayed} ${sessionsPlayed === 1 ? 'session' : 'sessioner'} · ${rs.rounds} rundor</span>
           </div>
-          <div class="stats-grid stats-grid-sm">
-            <div class="stat-card">
-              <div class="stat-value">${ps.maxStreak}</div>
-              <div class="stat-label">Längsta vinststreak</div>
+
+          <div class="stats-group">
+            <div class="stats-group-label">Rundor</div>
+            ${counted > 0 ? `
+            <div class="stats-wlt-bar" role="img" aria-label="${rs.wins} vunna, ${rs.losses} förlorade, ${rs.ties} oavgjorda rundor">
+              ${seg('is-win', rs.wins)}${seg('is-loss', rs.losses)}${seg('is-tie', rs.ties)}
             </div>
-            <div class="stat-card">
-              <div class="stat-value">${highRnd}</div>
-              <div class="stat-label">Högsta runda</div>
+            <div class="stats-wlt-legend">
+              <span class="sd-wl-win">${rs.wins}W</span>
+              <span class="sd-wl-loss">${rs.losses}L</span>
+              ${rs.ties > 0 ? `<span class="sd-wl-tie">${rs.ties}T</span>` : ''}
+              ${winPct !== null ? `<span class="stats-wlt-pct">${winPct} % vunna</span>` : ''}
+            </div>` : ''}
+            <div class="stats-grid stats-grid-sm">
+              <div class="stat-card">
+                <div class="stat-value">${rs.bestStreak}</div>
+                <div class="stat-label">Bästa streak (rundor i rad)</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${highRnd}</div>
+                <div class="stat-label">Högsta runda</div>
+              </div>
+              <div class="stat-card${avgCls(avgRound)}">
+                <div class="stat-value">${avgRound !== null ? fmtUnitAvg(avgRound) : '–'}</div>
+                <div class="stat-label">Snitt per runda</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${avgWin !== null ? fmtUnitAvg(avgWin) : '–'}</div>
+                <div class="stat-label">Snitt per vunnen runda</div>
+              </div>
             </div>
-            <div class="stat-card stat-card--positive">
-              <div class="stat-value">${peak}</div>
-              <div class="stat-label">Högsta saldo</div>
+          </div>
+
+          <div class="stats-group">
+            <div class="stats-group-label">Saldo</div>
+            <div class="stats-grid stats-grid-sm">
+              <div class="stat-card stat-card--positive">
+                <div class="stat-value">${rs.sessionPeak !== null ? fmtUnitSigned(rs.sessionPeak) : '–'}</div>
+                <div class="stat-label">Bästa topp i en session</div>
+              </div>
+              <div class="stat-card stat-card--negative">
+                <div class="stat-value">${rs.sessionLow !== null ? fmtUnitSigned(rs.sessionLow) : '–'}</div>
+                <div class="stat-label">Djupaste botten i en session</div>
+              </div>
+              <div class="stat-card stat-card--positive">
+                <div class="stat-value">${peak}</div>
+                <div class="stat-label">Högsta saldo totalt</div>
+              </div>
+              <div class="stat-card stat-card--negative">
+                <div class="stat-value">${lowest}</div>
+                <div class="stat-label">Lägsta saldo totalt</div>
+              </div>
             </div>
-            <div class="stat-card stat-card--negative">
-              <div class="stat-value">${lowest}</div>
-              <div class="stat-label">Lägsta saldo</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value">${ps.wins}</div>
-              <div class="stat-label">Sessionsvinster</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value">${ps.losses}</div>
-              <div class="stat-label">Sessionsförluster</div>
+          </div>
+
+          <div class="stats-group">
+            <div class="stats-group-label">Sessioner</div>
+            <div class="stats-grid stats-grid-sm stats-grid-3">
+              <div class="stat-card">
+                <div class="stat-value">${ps.wins}</div>
+                <div class="stat-label">Vinster</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${ps.losses}</div>
+                <div class="stat-label">Förluster</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${ps.maxStreak}</div>
+                <div class="stat-label">Vinster i rad</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1045,8 +1237,16 @@ export function renderStats(sessions, players, entries) {
     </div>
   `;
 
-  container.innerHTML = globalHtml + duelHtml + `<div class="stats-section"><h3 class="stats-section-title">Per spelare</h3>${playersHtml}</div>`;
+  container.innerHTML = globalHtml + highlightsHtml + duelHtml + `<div class="stats-section"><h3 class="stats-section-title">Per spelare</h3>${playersHtml}</div>`;
   setupDuel(document.getElementById('duel'), sessionData, players, useKr);
+
+  // Höjdpunktskorten tonas in ett i taget
+  setTimeout(() => {
+    container.querySelectorAll('.sd-highlight-card').forEach((el, i) => {
+      el.style.transitionDelay = `${i * 60}ms`;
+      el.classList.add('sd-animate-in');
+    });
+  }, 10);
 
   // FAB-rad för p/kr-switch + diagram-knapp – fast position, följer med vid scroll
   const existing = document.getElementById('stats-unit-fab');
