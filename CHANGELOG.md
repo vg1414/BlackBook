@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-01 (del 4)
+- Ändrat: guldlinjen under titeln på splashen är nu rak i stället för vågig
+- Bump: SW-cache till v20
+
 ## 2026-10-01 (del 3)
 - Ny: levande splash – boken landar med en studs och gungar, titeln skrivs fram med en glödande pennspets, en guldlinje dras under, guldstoft stiger i bakgrunden
 - Ny: "dagens rad" på splashen – en slumpad handskriven rad som byts varje gång appen öppnas
