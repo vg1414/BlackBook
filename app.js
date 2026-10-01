@@ -367,7 +367,7 @@ function updateDashboardUnitToggle() {
 
 function renderDashboard() {
   const showKr = getDashboardShowKr();
-  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
+  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr, state.sessions, state.entries);
   renderSettlements(state.totals, state.players, state.confirmations);
   renderConfirmedTransactions(state.players, state.confirmations);
   renderTotals(state.history, state.players, true, state.sessions);
@@ -377,7 +377,7 @@ function renderDashboard() {
 
 function onBalancesUpdate() {
   const showKr = getDashboardShowKr();
-  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
+  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr, state.sessions, state.entries);
 }
 
 let _clearingBook = false;
@@ -396,12 +396,12 @@ function onTotalsUpdate() {
   const showKr = getDashboardShowKr();
   renderSettlements(state.totals, state.players, state.confirmations);
   renderConfirmedTransactions(state.players, state.confirmations);
-  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
+  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr, state.sessions, state.entries);
 }
 
 function onHistoryUpdate() {
   const showKr = getDashboardShowKr();
-  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr);
+  renderBalances(state.balances, state.players, state.playerId, state.totals, getActivePointValue(), showKr, state.sessions, state.entries);
   renderTotals(state.history, state.players, true, state.sessions);
 }
 
@@ -459,6 +459,8 @@ function onEntriesUpdate() {
   renderHistory(state.sessions, state.players, state.entries);
   renderClosedSessionsOnDashboard(state.sessions, state.players, state.entries, getDashboardShowKr());
   renderStats(state.sessions, state.players, state.entries);
+  // Formkurvan i saldolistan bygger på posterna
+  onBalancesUpdate();
   // Refresh chart if it's open
   const chartModal = document.getElementById('modal-chart');
   if (!chartModal.classList.contains('hidden') && !chartModal.classList.contains('closing')) {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-01 (del 2)
+- Ny: formkurva i saldolistan – en prick per session för spelarens fem senaste avslutade sessioner (grön = plus, röd = minus, grå = noll), nyast till höger
+- Ändrat: Duell på Statistik-sidan visas bara när minst tre spelare har spelat – med två spelare säger den samma sak som övrig statistik
+- Bump: SW-cache till v18
+
 ## 2026-10-01
 - Ny: gruppstatistiken summerar nu all statistik från sessionerna – vunna/förlorade/oavgjorda rundor (med stapel och vinstprocent), bästa streak i rundor, snitt per runda, snitt per vunnen runda, bästa topp och djupaste botten i en enskild session
 - Ny: "Höjdpunkter" på Statistik-sidan – gruppens rekord (längsta streak, bästa runda, flest sessionsvinster, flest vunna rundor, högsta topp, djupaste botten) med vem som har rekordet och i vilken session

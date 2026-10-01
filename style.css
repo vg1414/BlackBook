@@ -754,6 +754,25 @@ input[type="number"]::-webkit-outer-spin-button {
   margin-left: 6px;
 }
 
+/* Formkurva: en prick per session, nyast till höger. Äldre prickar tonas ner */
+.balance-form {
+  display: flex;
+  gap: 5px;
+  margin-top: 6px;
+}
+.form-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.form-dot.is-pos { background: var(--success); }
+.form-dot.is-neg { background: var(--danger); }
+.form-dot:nth-last-child(2) { opacity: 0.85; }
+.form-dot:nth-last-child(3) { opacity: 0.75; }
+.form-dot:nth-last-child(4) { opacity: 0.65; }
+.form-dot:nth-last-child(5) { opacity: 0.55; }
+
 .balance-amount {
   font-size: 17px;
   font-weight: 700;

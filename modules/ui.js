@@ -49,12 +49,44 @@ export function showScreen(screenId) {
 
 // ===== BALANCES =====
 
-export function renderBalances(balances, players, currentPlayerId, totals, activePointValue, showKr) {
+// Formkurva: resultatet i varje spelares senaste avslutade sessioner (äldst → nyast).
+// Returnerar { [playerId]: [{ result: 'pos' | 'neg' | 'zero', name }] }
+function computeForm(sessions, entries, count = 5) {
+  const closed = Object.entries(sessions || {})
+    .filter(([, s]) => s.status === 'closed')
+    .sort((a, b) => (a[1].closedAt || 0) - (b[1].closedAt || 0));
+
+  // Summera varje spelares resultat per session i ett svep över alla poster
+  const sums = {};
+  closed.forEach(([id]) => { sums[id] = {}; });
+  Object.values(entries || {}).forEach(e => {
+    if (e.deleted || !sums[e.sessionId]) return;
+    sums[e.sessionId][e.playerId] = (sums[e.sessionId][e.playerId] || 0) + e.amount;
+  });
+
+  const form = {};
+  closed.forEach(([id, s]) => {
+    Object.keys(s.playerIds || {}).forEach(pid => {
+      const total = sums[id][pid] || 0;
+      (form[pid] = form[pid] || []).push({
+        result: total > 0 ? 'pos' : total < 0 ? 'neg' : 'zero',
+        name: s.name || 'Session',
+      });
+    });
+  });
+  Object.keys(form).forEach(pid => { form[pid] = form[pid].slice(-count); });
+  return form;
+}
+
+export function renderBalances(balances, players, currentPlayerId, totals, activePointValue, showKr, sessions, entries) {
   const container = document.getElementById('balances-list');
   if (!players || Object.keys(players).length === 0) {
     container.innerHTML = '<p class="muted">Inga spelare ännu</p>';
     return;
   }
+
+  const form = computeForm(sessions, entries);
+  const formLabels = { pos: 'plus', neg: 'minus', zero: 'noll' };
 
   const items = Object.entries(players).map(([id, player]) => {
     const net = balances[id]?.net || 0;
@@ -77,11 +109,17 @@ export function renderBalances(balances, players, currentPlayerId, totals, activ
       display = formatPoints(totalNet, null);
     }
 
+    const dots = form[id] || [];
+    const formHtml = dots.length > 0 ? `
+          <span class="balance-form" role="img" aria-label="Senaste ${dots.length === 1 ? 'sessionen' : dots.length + ' sessionerna'}: ${dots.map(d => formLabels[d.result]).join(', ')}">
+            ${dots.map(d => `<span class="form-dot is-${d.result}" title="${escHtml(d.name)}"></span>`).join('')}
+          </span>` : '';
+
     return `
       <div class="balance-item ${cls}">
         <div class="player-avatar" style="background:${player.color}20;color:${player.color}">${initial}</div>
         <div class="balance-info">
-          <span class="balance-name">${escHtml(player.name)}${isYou ? '<span class="balance-you">Du</span>' : ''}</span>
+          <span class="balance-name">${escHtml(player.name)}${isYou ? '<span class="balance-you">Du</span>' : ''}</span>${formHtml}
         </div>
         <span class="balance-amount ${amtCls}" data-roll="bal-${id}-${showKr ? 'kr' : 'p'}">${display}</span>
       </div>
@@ -1300,7 +1338,8 @@ function setupDuel(el, sessionData, players, useKr) {
   if (!el) return;
   // Bara spelare som varit med i minst en avslutad session
   const ids = Object.keys(players).filter(pid => sessionData.some(d => d.playerIds.includes(pid)));
-  if (ids.length < 2) {
+  // Med bara två spelare säger duellen samma sak som resten av statistiken – visa den först vid tre
+  if (ids.length < 3) {
     document.getElementById('duel-section').style.display = 'none';
     return;
   }
