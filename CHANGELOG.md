@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-12
+- Fix: dubbeltryck på "Starta session" kunde skapa två aktiva sessioner – appen kunde sedan byta till den tomma kopian så att sessionen såg nollställd ut
+- Ny: globalt skydd mot dubbeltryck – samma knapp kan inte tryckas igen inom 0,8 s (växlar som +/− och enhet undantas)
+- Ny: "Registrera runda" och "Starta session" spärras medan de sparar; finns redan en aktiv session öppnas den i stället för att en ny skapas
+- Ändrat: finns flera aktiva sessioner väljer appen den med flest rundor (nyast vid lika) i stället för den första i listan
+- Ny: "Radera session"-knapp i sessionsinställningarna
+- Bump: SW-cache till v21
+
 ## 2026-10-01 (del 4)
 - Ändrat: guldlinjen under titeln på splashen är nu rak i stället för vågig
 - Bump: SW-cache till v20

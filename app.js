@@ -306,8 +306,16 @@ function onPlayersUpdate() {
 }
 
 function onSessionsUpdate() {
-  const active = Object.entries(state.sessions).find(([, s]) => s.status === 'active');
-  state.activeSessionId = active ? active[0] : null;
+  // Behåll nuvarande session om den fortfarande är aktiv. Finns flera aktiva
+  // (t.ex. efter dubbeltryck på Starta) väljs den med flest rundor, sedan den nyaste –
+  // aldrig en slumpvis tom kopia.
+  const actives = Object.entries(state.sessions).filter(([, s]) => s.status === 'active');
+  if (!actives.some(([id]) => id === state.activeSessionId)) {
+    const roundCount = id => Object.values(state.entries).filter(e => e.sessionId === id && !e.deleted).length;
+    actives.sort(([idA, a], [idB, b]) =>
+      (roundCount(idB) - roundCount(idA)) || ((b.createdAt || 0) - (a.createdAt || 0)));
+    state.activeSessionId = actives.length ? actives[0][0] : null;
+  }
 
   if (!state.initialNavDone) {
     state.initialNavDone = true;
@@ -718,6 +726,23 @@ function setupModalSwipe(overlay) {
 // ===== EVENTS =====
 
 function bindEvents() {
+  // Globalt skydd mot dubbeltryck: samma knapp kan inte tryckas igen inom 800 ms.
+  // Lyssnar i capture-fasen så att det andra trycket stoppas innan knappens egen
+  // handler hinner köras. Växlar (+/−, enhet, utfällbara listor) undantas –
+  // där är snabba upprepade tryck avsiktliga och ofarliga.
+  const REPEAT_OK = '.btn-sign-toggle, .btn-unit-toggle, .btn-unit-toggle-inline, .settlement-toggle, [data-allow-repeat]';
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('button, .btn');
+    if (!btn || btn.matches(REPEAT_OK)) return;
+    const now = Date.now();
+    if (now - (btn._lastClick || 0) < 800) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return;
+    }
+    btn._lastClick = now;
+  }, true);
+
   // Lobby – join
   document.getElementById('btn-join').addEventListener('click', handleJoin);
   document.getElementById('btn-create').addEventListener('click', handleCreate);
@@ -880,6 +905,10 @@ function bindEvents() {
   document.getElementById('btn-show-session-guide').addEventListener('click', () => {
     closeModal('modal-session-settings');
     setTimeout(() => showSessionGuideForced(), 300);
+  });
+  document.getElementById('btn-delete-active-session').addEventListener('click', () => {
+    closeModal('modal-session-settings');
+    handleDeleteActiveSession();
   });
   document.getElementById('btn-copy-code-session').addEventListener('click', () => {
     if (state.groupCode) {
@@ -1297,6 +1326,26 @@ async function handleStartSession() {
 }
 
 async function doStartSession() {
+  // Spärr mot dubbeltryck: bara en sessionsstart åt gången
+  if (state.startingSession) return;
+  // Finns redan en aktiv session (t.ex. startad från en annan telefon) → gå dit istället
+  const existing = Object.entries(state.sessions).find(([, s]) => s.status === 'active');
+  if (existing) {
+    state.activeSessionId = existing[0];
+    closeNewSessionModal();
+    showScreen('session');
+    showToast('Det finns redan en aktiv session');
+    return;
+  }
+  state.startingSession = true;
+  try {
+    await createAndOpenSession();
+  } finally {
+    state.startingSession = false;
+  }
+}
+
+async function createAndOpenSession() {
   const name = document.getElementById('input-session-name').value.trim();
   const pvRaw = parseFloat(document.getElementById('input-point-value').value);
   const pointValue = isNaN(pvRaw) || pvRaw <= 0 ? null : pvRaw;
@@ -1827,6 +1876,17 @@ async function handleDeleteSession(sessionId) {
 }
 
 async function handleQuickSubmit() {
+  // Spärr mot dubbelregistrering (dubbeltryck eller Enter + klick)
+  if (state.submittingRound) return;
+  state.submittingRound = true;
+  try {
+    await submitQuickRound();
+  } finally {
+    state.submittingRound = false;
+  }
+}
+
+async function submitQuickRound() {
   if (!state.activeSessionId) { showToast('Ingen aktiv session'); return; }
   const amounts = getQuickAmounts();
 
