@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-12 (del 2)
+- Ny: splashen börjar med en glödande guldorb där guldet virvlar som vätska (WebGL, ny fil `splash-orb.js`). Orben plattas ut till bokens form och boken tonar fram ur guldet
+- Borttaget: guldstoftet på splashen (orben ersätter det)
+- Ändrat: splashens tempo styrs av en variabel (`--splash-k`, satt till 1.5); splashen visas nu 5 s och kan fortfarande hoppas över med ett tryck
+- Bump: SW-cache till v22
+
 ## 2026-10-12
 - Fix: dubbeltryck på "Starta session" kunde skapa två aktiva sessioner – appen kunde sedan byta till den tomma kopian så att sessionen såg nollställd ut
 - Ny: globalt skydd mot dubbeltryck – samma knapp kan inte tryckas igen inom 0,8 s (växlar som +/− och enhet undantas)

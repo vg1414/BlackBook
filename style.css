@@ -1,5 +1,6 @@
 /* ===== SPLASH SCREEN ===== */
 #splash-screen {
+  --splash-k: 1.5; /* tempo: 1 = snabbt, högre = långsammare (splash-orb.js läser samma värde) */
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -19,26 +20,47 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 6px;
+  margin-top: -40px;
 }
 
-/* Tidslinje (från sidladdning): bok 0.1s → titel skrivs 0.4s → linje 0.9s → dagens rad 1.1s → stängs vid 2.4s */
+/* Tidslinje (gånger --splash-k, från sidladdning): orben blommar 0.1s → virvlar → plattas till bokform 1.05s
+   → boken tonar fram ur guldet 1.45s → titel 1.75s → linje 2.25s → dagens rad 2.4s */
 
-/* Boken landar med en studs och gungar sedan sakta så skärmen aldrig står helt still */
+/* Scenen: orben (canvas, ritas av splash-orb.js) och boken ligger exakt ovanpå varandra */
+.splash-stage {
+  position: relative;
+  width: min(380px, 96vw);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+.splash-orb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Boken bildas ur guldet: börjar överexponerad och guldtonad, landar i sina riktiga färger och gungar sedan sakta */
 .splash-book {
+  position: relative;
   width: 280px;
-  max-width: 80vw;
-  filter: drop-shadow(0 0 40px rgba(212, 175, 55, 0.5)) drop-shadow(0 16px 32px rgba(0,0,0,0.7));
+  max-width: 74vw;
+  filter: drop-shadow(0 16px 32px rgba(0,0,0,0.7));
   animation:
-    splashBookDrop 0.7s var(--spring) 0.1s both,
-    splashBookIdle 2.6s ease-in-out 0.8s infinite alternate;
+    splashBookForm calc(0.65s * var(--splash-k)) ease-out calc(1.45s * var(--splash-k)) both,
+    splashBookIdle 2.6s ease-in-out calc(2.1s * var(--splash-k)) infinite alternate;
 }
+/* Utan WebGL finns ingen orb – då visas boken direkt */
+#splash-screen.no-orb .splash-book { animation-delay: 0s, 0.65s; }
 
 .splash-title-wrap {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-top: -36px;
 }
 
 /* Titeln skrivs fram från vänster till höger (clip-path öppnas som en ridå) */
@@ -53,7 +75,9 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   background-size: 300% auto;
-  animation: splashWrite 0.6s cubic-bezier(0.4, 0, 0.6, 1) 0.4s both, shimmer 4s ease-in-out 1s infinite;
+  animation:
+    splashWrite calc(0.6s * var(--splash-k)) cubic-bezier(0.4, 0, 0.6, 1) calc(1.75s * var(--splash-k)) both,
+    shimmer 4s ease-in-out calc(2.4s * var(--splash-k)) infinite;
 }
 
 /* Pennspetsen: en glödande punkt som följer skrivkanten */
@@ -68,7 +92,7 @@
   background: #fff6d6;
   box-shadow: 0 0 10px 3px rgba(240, 213, 122, 0.9);
   opacity: 0;
-  animation: splashNib 0.6s cubic-bezier(0.4, 0, 0.6, 1) 0.4s both;
+  animation: splashNib calc(0.6s * var(--splash-k)) cubic-bezier(0.4, 0, 0.6, 1) calc(1.75s * var(--splash-k)) both;
 }
 
 /* Guldlinjen dras som ett penndrag under titeln */
@@ -86,7 +110,7 @@
   stroke-linecap: round;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: splashDraw 0.4s var(--ease-out-expo) 0.9s both;
+  animation: splashDraw calc(0.4s * var(--splash-k)) var(--ease-out-expo) calc(2.25s * var(--splash-k)) both;
 }
 
 /* Dagens rad – handskriven, skrivs fram sist */
@@ -97,27 +121,8 @@
   color: #d9c9a0;
   text-align: center;
   max-width: 80vw;
-  animation: splashWrite 0.5s cubic-bezier(0.4, 0, 0.6, 1) 1.1s both;
-}
-
-/* Guldstoft som stiger bakom boken */
-.splash-dust {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-.splash-dust span {
-  position: absolute;
-  bottom: -8px;
-  left: var(--x);
-  width: var(--s, 3px);
-  height: var(--s, 3px);
-  border-radius: 50%;
-  background: #f6e39a;
-  box-shadow: 0 0 8px rgba(240, 213, 122, 0.8);
-  opacity: 0;
-  animation: splashDust var(--d, 3s) linear var(--delay, 0s) infinite;
+  margin-top: 10px;
+  animation: splashWrite calc(0.5s * var(--splash-k)) cubic-bezier(0.4, 0, 0.6, 1) calc(2.4s * var(--splash-k)) both;
 }
 
 @keyframes splashFadeOut {
@@ -125,10 +130,10 @@
   to   { opacity: 0; pointer-events: none; }
 }
 
-@keyframes splashBookDrop {
-  0%   { opacity: 0; transform: translateY(-46px) rotate(-7deg) scale(0.9); }
-  55%  { opacity: 1; }
-  100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+@keyframes splashBookForm {
+  0%   { opacity: 0; transform: scale(0.94); filter: brightness(2.6) sepia(1) saturate(2.4) blur(5px) drop-shadow(0 0 0 rgba(0,0,0,0)); }
+  45%  { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); filter: brightness(1) sepia(0) saturate(1) blur(0) drop-shadow(0 16px 32px rgba(0,0,0,0.7)); }
 }
 
 @keyframes splashBookIdle {
@@ -153,15 +158,8 @@
   to { stroke-dashoffset: 0; }
 }
 
-@keyframes splashDust {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  15%  { opacity: 0.9; }
-  100% { transform: translate(var(--drift, 12px), -70vh); opacity: 0; }
-}
-
-/* Mindre rörelse: visa allt direkt, utan stoft och gung */
+/* Mindre rörelse: visa allt direkt, utan pennspets och gung */
 @media (prefers-reduced-motion: reduce) {
-  .splash-dust,
   .splash-title-wrap::after { display: none; }
   .splash-book,
   .splash-title,

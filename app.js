@@ -90,8 +90,9 @@ function init() {
         if (e.animationName === 'splashFadeOut') splash.remove();
       });
     };
-    // Animationerna startar när sidan laddas, så räkna de 2,4 sekunderna därifrån (inte från init)
-    setTimeout(hideSplash, Math.max(0, 2400 - performance.now()));
+    // Animationerna startar när sidan laddas, så räkna de 5 sekunderna därifrån (inte från init).
+    // Sista steget (dagens rad) är klart efter ca 4,35 s med tempot 1.5 i style.css
+    setTimeout(hideSplash, Math.max(0, 5000 - performance.now()));
     // Ett tryck var som helst hoppar över
     splash.addEventListener('click', hideSplash);
   }
