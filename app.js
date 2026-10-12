@@ -55,6 +55,13 @@ if (screen?.orientation?.lock) {
 
 // ===== INIT =====
 
+// Saker som ska vänta tills splashen är borta (t.ex. välkomstguiden)
+const splashDoneCallbacks = [];
+function afterSplash(fn) {
+  if (document.getElementById('splash-screen')) splashDoneCallbacks.push(fn);
+  else fn();
+}
+
 function init() {
   const saved = getSavedGroup();
   const joinParam = new URLSearchParams(location.search).get('join')?.toUpperCase();
@@ -73,7 +80,8 @@ function init() {
     connectToGroup(true);
   } else {
     prefillCode();
-    setTimeout(() => startLobbyGuide(), 600);
+    // Guiden väntar tills splashen har tonat ut, annars hamnar den ovanpå animationen
+    afterSplash(() => setTimeout(() => startLobbyGuide(), 600));
   }
 
   bindEvents();
@@ -87,7 +95,10 @@ function init() {
       splash.classList.add('splash-hiding');
       // Barnens animationer bubblar också hit – ta bara bort splashen när dess egen uttoning är klar
       splash.addEventListener('animationend', e => {
-        if (e.animationName === 'splashFadeOut') splash.remove();
+        if (e.animationName === 'splashFadeOut') {
+          splash.remove();
+          splashDoneCallbacks.splice(0).forEach(fn => fn());
+        }
       });
     };
     // Animationerna startar när sidan laddas, så räkna de 5 sekunderna därifrån (inte från init).

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-12 (del 3)
+- Fix: välkomstguiden ("Välkommen till Black Book") för nya användare dök upp ovanpå splashen – den väntar nu tills splashen har tonat ut
+- Bump: SW-cache till v23
+
 ## 2026-10-12 (del 2)
 - Ny: splashen börjar med en glödande guldorb där guldet virvlar som vätska (WebGL, ny fil `splash-orb.js`). Orben plattas ut till bokens form och boken tonar fram ur guldet
 - Borttaget: guldstoftet på splashen (orben ersätter det)
