@@ -1,4 +1,4 @@
-const CACHE_NAME = 'blackbook-v23';
+const CACHE_NAME = 'blackbook-v24';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

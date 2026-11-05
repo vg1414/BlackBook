@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-05
+- Ny: session utan namn får dagens datum som namn (t.ex. "5/11"); datumet visas som platshållare i namnfältet
+- Ändrat: formprickarna under spelarnamnen har nu samma färgstyrka – äldre sessioner bleknar inte längre
+- Bump: SW-cache till v24
+
 ## 2026-10-12 (del 3)
 - Fix: välkomstguiden ("Välkommen till Black Book") för nya användare dök upp ovanpå splashen – den väntar nu tills splashen har tonat ut
 - Bump: SW-cache till v23

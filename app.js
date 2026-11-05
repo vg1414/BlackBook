@@ -1284,6 +1284,8 @@ function openNewSessionModal() {
   state.newSessionSelectedPlayers = Object.keys(state.players);
   renderSessionPlayerSelect(state.players, state.newSessionSelectedPlayers);
   document.getElementById('input-session-name').value = '';
+  // Visa dagens datum som platshållare – det blir namnet om fältet lämnas tomt
+  document.getElementById('input-session-name').placeholder = todayLabel();
   document.getElementById('input-point-value').value = '';
 
   // Player selection toggle
@@ -1357,8 +1359,14 @@ async function doStartSession() {
   }
 }
 
+// Dagens datum som "dag/månad", t.ex. "5/11"
+function todayLabel() {
+  const d = new Date();
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
+
 async function createAndOpenSession() {
-  const name = document.getElementById('input-session-name').value.trim();
+  const name = document.getElementById('input-session-name').value.trim() || todayLabel();
   const pvRaw = parseFloat(document.getElementById('input-point-value').value);
   const pointValue = isNaN(pvRaw) || pvRaw <= 0 ? null : pvRaw;
 
